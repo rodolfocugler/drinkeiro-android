@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Cocktail glass body (triangle) -->
+    <path
+        android:fillColor="#C47F2A"
+        android:pathData="M30,28 L78,28 L57,62 L57,78 L51,78 L51,62 Z"/>
+
+    <!-- Glass stem -->
+    <path
+        android:fillColor="#C47F2A"
+        android:pathData="M42,78 L66,78 L66,82 L42,82 Z"/>
+
+    <!-- Glass base -->
+    <path
+        android:fillColor="#C47F2A"
+        android:pathData="M36,82 L72,82 L72,86 L36,86 Z"/>
+
+    <!-- Liquid fill (lighter amber) -->
+    <path
+        android:fillColor="#E8A040"
+        android:pathData="M36,28 L72,28 L57,58 L51,58 Z"/>
+
+    <!-- Olive / garnish dot -->
+    <path
+        android:fillColor="#6AAB7E"
+        android:pathData="M70,32 A5,5 0 1,1 70.01,32 Z"/>
+
+    <!-- Olive stick -->
+    <path
+        android:fillColor="#A0522D"
+        android:strokeColor="#A0522D"
+        android:strokeWidth="2"
+        android:pathData="M65,37 L78,24"/>
+</vector>
