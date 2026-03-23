@@ -33,7 +33,7 @@ data class Cocktail(
 
 @Serializable
 data class Ingredient(
-    @SerialName("strIngredient") val strIngredient: String,
+    @SerialName("strIngredient") val strIngredient: String?,
     @SerialName("strMeasure")    val strMeasure: String?    = null,
     @SerialName("order")         val order: Int,
 )

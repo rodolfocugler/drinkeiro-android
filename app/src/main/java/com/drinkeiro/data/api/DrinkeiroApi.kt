@@ -16,42 +16,47 @@ interface DrinkeiroApi {
     // ── Cocktails ─────────────────────────────────────────────────────────────
 
     /** Get all cocktails (optionally filtered by category) */
-    @GET("cocktails")
+//    @GET("drinks")
+//    suspend fun getCocktails(
+//        @Query("filter") category: String? = null,
+//    ): Response<ApiList<Cocktail>>
+
+    @GET("drinks")
     suspend fun getCocktails(
-        @Query("category") category: String? = null,
-    ): Response<ApiList<Cocktail>>
+        @Query("filter") category: String? = null,
+    ): Response<List<Cocktail>>
 
     /** Get a single cocktail by id */
-    @GET("cocktails/{id}")
+    @GET("drinks/{id}")
     suspend fun getCocktail(
         @Path("id") id: String,
     ): Response<Cocktail>
 
     /** Create a new cocktail recipe */
-    @POST("cocktails")
+    @POST("drinks")
     suspend fun createCocktail(
         @Body cocktail: Cocktail,
     ): Response<Cocktail>
 
     /** Update an existing cocktail recipe */
-    @PUT("cocktails/{id}")
+    @PUT("drinks/{id}")
     suspend fun updateCocktail(
         @Path("id") id: String,
         @Body cocktail: Cocktail,
     ): Response<Cocktail>
 
     /** Delete a cocktail recipe */
-    @DELETE("cocktails/{id}")
+    @DELETE("drinks/{id}")
     suspend fun deleteCocktail(
         @Path("id") id: String,
     ): Response<Unit>
 
     // ── Favorites ─────────────────────────────────────────────────────────────
 
-    @GET("favorites")
+    @GET("drinks/favorites")
     suspend fun getFavorites(): Response<ApiList<Cocktail>>
 
-    @PUT("favorites/{idDrink}")
+    @PUT("drinks/favorites/{idDrink}")
     suspend fun addFavorite(
         @Path("idDrink") idDrink: String,
     ): Response<Unit>

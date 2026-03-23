@@ -174,7 +174,7 @@ fun CocktailDetailSheet(
                 // Ingredient list
                 ings.forEach { ing ->
                     IngredientRow(
-                        name    = ing.strIngredient,
+                        name    = ing.strIngredient!!,
                         measure = ing.strMeasure ?: "",
                         onMeasureChange = { newVal ->
                             ings = ings.map { if (it.order == ing.order) it.copy(strMeasure = newVal.ifBlank { null }) else it }
@@ -339,7 +339,7 @@ private fun BrewConfirmSheet(
                         .padding(horizontal = 12.dp, vertical = 9.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(ing.strIngredient, style = MaterialTheme.typography.bodyMedium, color = c.cream2)
+                    Text(ing.strIngredient!!, style = MaterialTheme.typography.bodyMedium, color = c.cream2)
                     Text(ing.strMeasure ?: "to fill", style = MaterialTheme.typography.bodySmall, color = c.cream3)
                 }
             }

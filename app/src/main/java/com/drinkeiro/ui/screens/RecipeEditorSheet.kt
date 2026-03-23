@@ -220,7 +220,7 @@ fun RecipeEditorSheet(
                     Column(modifier = Modifier.padding(12.dp)) {
                         // strIngredient editable
                         androidx.compose.foundation.text.BasicTextField(
-                            value         = ing.strIngredient,
+                            value         = ing.strIngredient!!,
                             onValueChange = { v ->
                                 ings = ings.map { if (it.order == ing.order) it.copy(strIngredient = v) else it }
                             },

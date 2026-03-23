@@ -28,12 +28,11 @@ private enum class Tab(val icon: String, val label: String) {
 @Composable
 fun MainScreen(
     cocktailVm: CocktailViewModel = hiltViewModel(),
-    machineVm:  MachineViewModel  = hiltViewModel(),
+    machineVm: MachineViewModel = hiltViewModel(),
 ) {
-    val c          = DrinkeiroTheme.colors
-    var activeTab  by remember { mutableStateOf(Tab.Favorites) }
-    val machineUi  by machineVm.ui.collectAsState()
-    val cocktailUi by cocktailVm.ui.collectAsState()
+    val c = DrinkeiroTheme.colors
+    var activeTab by remember { mutableStateOf(Tab.Favorites) }
+    val machineUi by machineVm.ui.collectAsState()
 
     Scaffold(
         containerColor = c.bg0,
@@ -41,31 +40,33 @@ fun MainScreen(
             Column {
                 HorizontalDivider(color = c.border, thickness = 0.5.dp)
                 NavigationBar(
-                    containerColor    = c.bg0,
-                    contentColor      = c.cream3,
-                    tonalElevation    = 0.dp,
-                    modifier          = Modifier.navigationBarsPadding(),
+                    containerColor = c.bg0,
+                    contentColor = c.cream3,
+                    tonalElevation = 0.dp,
+                    modifier = Modifier.navigationBarsPadding(),
                 ) {
                     Tab.entries.forEach { tab ->
                         val selected = tab == activeTab
                         NavigationBarItem(
                             selected = selected,
-                            onClick  = { activeTab = tab },
-                            icon     = {
+                            onClick = { activeTab = tab },
+                            icon = {
                                 Surface(
                                     shape = RoundedCornerShape(13.dp),
                                     color = if (selected) c.accentLo else c.bg0,
                                     modifier = Modifier.size(38.dp),
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
-                                        Text(tab.icon, fontSize = 18.sp,
-                                            color = if (selected) c.accent else c.cream4)
+                                        Text(
+                                            tab.icon, fontSize = 18.sp,
+                                            color = if (selected) c.accent else c.cream4
+                                        )
                                     }
                                 }
                             },
                             label = {
                                 Text(
-                                    text  = tab.label.uppercase(),
+                                    text = tab.label.uppercase(),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = if (selected) c.accent else c.cream4,
                                 )
@@ -87,8 +88,8 @@ fun MainScreen(
             ) {
                 // ── App header ──────────────────────────────────────────────
                 AppHeader(
-                    machineVm  = machineVm,
-                    activeTab  = activeTab,
+                    machineVm = machineVm,
+                    activeTab = activeTab,
                     cocktailVm = cocktailVm,
                 )
 
@@ -97,8 +98,8 @@ fun MainScreen(
                     when (activeTab) {
                         Tab.Favorites -> FavoritesTab(cocktailVm, machineVm)
                         Tab.Cocktails -> CocktailsTab(cocktailVm, machineVm)
-                        Tab.History   -> HistoryTab(machineVm, cocktailVm)
-                        Tab.Machine   -> MachineSettingsTab(machineVm)
+                        Tab.History -> HistoryTab(machineVm, cocktailVm)
+                        Tab.Machine -> MachineSettingsTab(machineVm)
                     }
                 }
             }
@@ -106,9 +107,11 @@ fun MainScreen(
             // ── Global brew toast ───────────────────────────────────────────
             AnimatedVisibility(
                 visible = machineUi.toastMessage != null,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = padding.calculateBottomPadding() + 12.dp),
-                enter   = slideInVertically { it } + fadeIn(),
-                exit    = slideOutVertically { it } + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = padding.calculateBottomPadding() + 12.dp),
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
             ) {
                 machineUi.toastMessage?.let { msg ->
                     LaunchedEffect(msg) {
@@ -126,11 +129,11 @@ fun MainScreen(
 
 @Composable
 private fun AppHeader(
-    machineVm:  MachineViewModel,
-    activeTab:  Tab,
+    machineVm: MachineViewModel,
+    activeTab: Tab,
     cocktailVm: CocktailViewModel,
 ) {
-    val c         = DrinkeiroTheme.colors
+    val c = DrinkeiroTheme.colors
     val machineUi by machineVm.ui.collectAsState()
     var showMachinePicker by remember { mutableStateOf(false) }
 
@@ -152,32 +155,38 @@ private fun AppHeader(
                 modifier = Modifier.clickable { showMachinePicker = true }
             ) {
                 Text(
-                    text  = "ACTIVE MACHINE",
+                    text = "ACTIVE MACHINE",
                     style = MaterialTheme.typography.labelSmall,
                     color = c.cream4,
                 )
                 Spacer(Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     StatusDot(machineUi.activeMachine?.status == "online")
                     Text(
-                        text       = machineUi.activeMachine?.name ?: "No machine",
-                        style      = MaterialTheme.typography.headlineSmall,
-                        color      = c.cream,
+                        text = machineUi.activeMachine?.name ?: "No machine",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = c.cream,
                     )
                     Text("▾", color = c.cream4, fontSize = 11.sp)
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 if (activeTab == Tab.Cocktails) {
                     AmberChip(text = "+ Recipe", onClick = { cocktailVm.requestCreateRecipe() })
                 }
                 Text(
-                    text      = "Drinkeiro",
-                    fontSize  = 15.sp,
+                    text = "Drinkeiro",
+                    fontSize = 15.sp,
                     fontStyle = FontStyle.Italic,
                     fontWeight = FontWeight.SemiBold,
-                    color     = c.accent,
+                    color = c.accent,
                 )
             }
         }

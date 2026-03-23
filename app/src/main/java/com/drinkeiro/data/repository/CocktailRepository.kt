@@ -12,7 +12,7 @@ class CocktailRepository @Inject constructor(
 ) {
     suspend fun getCocktails(category: String? = null): Result<List<Cocktail>> = runCatching {
         val r = api.getCocktails(category)
-        if (r.isSuccessful) r.body()!!.data
+        if (r.isSuccessful) r.body()!!
         else error("HTTP ${r.code()}: ${r.message()}")
     }
 

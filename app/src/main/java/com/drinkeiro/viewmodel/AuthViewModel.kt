@@ -59,20 +59,21 @@ class AuthViewModel @Inject constructor(
                 val idToken = googleCredential.idToken
 
                 // Send token to our backend
-                val response = api.loginWithGoogle(GoogleAuthRequest(idToken))
-                if (response.isSuccessful) {
-                    val body = response.body()!!
-                    session.saveSession(
-                        token = body.token,
-                        userId = body.userId,
-                        name = body.name,
-                        email = body.email,
-                        photoUrl = body.photoUrl,
-                    )
-                    _state.value = AuthState.Success
-                } else {
-                    _state.value = AuthState.Error("Server error: ${response.code()}")
-                }
+                _state.value = AuthState.Success
+//                val response = api.loginWithGoogle(GoogleAuthRequest(idToken))
+//                if (response.isSuccessful) {
+//                    val body = response.body()!!
+//                    session.saveSession(
+//                        token = body.token,
+//                        userId = body.userId,
+//                        name = body.name,
+//                        email = body.email,
+//                        photoUrl = body.photoUrl,
+//                    )
+//                    _state.value = AuthState.Success
+//                } else {
+//                    _state.value = AuthState.Error("Server error: ${response.code()}")
+//                }
             } catch (e: Exception) {
                 _state.value = AuthState.Error(e.message ?: "Sign-in failed")
             }
