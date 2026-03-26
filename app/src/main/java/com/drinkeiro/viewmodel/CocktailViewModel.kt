@@ -21,19 +21,36 @@ private fun emptyCocktail() = Cocktail(
     strIngredient = emptyList(),
 )
 
+private const val PAGE_SIZE = 20
+
 data class CocktailUiState(
     val cocktails:             List<Cocktail> = emptyList(),
     val favorites:             Set<String>    = emptySet(),
     val selectedCategory:      String         = "All",
+    val searchQuery:           String         = "",
     val isLoading:             Boolean        = false,
+    val isLoadingMore:         Boolean        = false,
+    val isRefreshing:          Boolean        = false,
+    val canLoadMore:           Boolean        = true,
+    val currentPage:           Int            = 0,
     val error:                 String?        = null,
     val toastMessage:          String?        = null,
-    // Recipe editor — non-null means the editor sheet is open
     val recipeEditorCocktail:  Cocktail?      = null,
     val isCreatingRecipe:      Boolean        = false,
-    // Delete confirmation — non-null means the confirm dialog is open
     val deleteConfirmCocktail: Cocktail?      = null,
-)
+) {
+    // Filtered view applying search query on top of loaded cocktails
+    val filtered: List<Cocktail> get() {
+        val q = searchQuery.trim().lowercase()
+        return if (q.isBlank()) cocktails
+        else cocktails.filter { c ->
+            c.strDrink.lowercase().contains(q) ||
+            c.strIngredient.any { it.strIngredient!!.lowercase().contains(q) } ||
+            c.strCategory.lowercase().contains(q)
+        }
+    }
+    val favFiltered: List<Cocktail> get() = filtered.filter { favorites.contains(it.idDrink) }
+}
 
 @HiltViewModel
 class CocktailViewModel @Inject constructor(
@@ -43,51 +60,89 @@ class CocktailViewModel @Inject constructor(
     private val _ui = MutableStateFlow(CocktailUiState())
     val ui = _ui.asStateFlow()
 
-    init { loadAll() }
+    init { load(refresh = false) }
 
-    // ── Load ──────────────────────────────────────────────────────────────────
+    // ── Load / Refresh / Load more ────────────────────────────────────────────
 
-    fun loadAll() {
+    fun load(refresh: Boolean = false) {
+        if (_ui.value.isLoading || _ui.value.isRefreshing) return
         viewModelScope.launch {
-            _ui.update { it.copy(isLoading = true, error = null) }
-            val cocktailsResult = repo.getCocktails()
+            if (refresh) {
+                _ui.update { it.copy(isRefreshing = true, currentPage = 0, canLoadMore = true) }
+            } else {
+                _ui.update { it.copy(isLoading = true, error = null) }
+            }
+
+            val cat = _ui.value.selectedCategory.takeIf { it != "All" }
+            val cocktailsResult = repo.getCocktails(category = cat, page = 0, pageSize = PAGE_SIZE)
             val favoritesResult = repo.getFavorites()
+
             _ui.update { state ->
                 state.copy(
-                    isLoading = false,
-                    cocktails = cocktailsResult.getOrElse { state.cocktails },
-                    favorites = favoritesResult.getOrElse { emptyList() }
-                        .map { it.idDrink }.toSet(),
-                    error = cocktailsResult.exceptionOrNull()?.message,
+                    isLoading    = false,
+                    isRefreshing = false,
+                    currentPage  = 0,
+                    cocktails    = cocktailsResult.getOrElse { state.cocktails },
+                    canLoadMore  = (cocktailsResult.getOrElse { emptyList() }.size >= PAGE_SIZE),
+                    favorites    = favoritesResult.getOrElse { emptyList() }.map { it.idDrink }.toSet(),
+                    error        = cocktailsResult.exceptionOrNull()?.message,
                 )
             }
         }
     }
 
-    fun setCategory(category: String) {
-        _ui.update { it.copy(selectedCategory = category) }
-        val cat = if (category == "All") null else category
+    fun loadMore() {
+        val state = _ui.value
+        if (!state.canLoadMore || state.isLoadingMore || state.isLoading || state.isRefreshing) return
+        val nextPage = state.currentPage + 1
         viewModelScope.launch {
-            repo.getCocktails(cat).onSuccess { list ->
-                _ui.update { it.copy(cocktails = list) }
-            }
+            _ui.update { it.copy(isLoadingMore = true) }
+            val cat = state.selectedCategory.takeIf { it != "All" }
+            repo.getCocktails(category = cat, page = nextPage, pageSize = PAGE_SIZE)
+                .onSuccess { newItems ->
+                    _ui.update { s ->
+                        s.copy(
+                            isLoadingMore = false,
+                            currentPage   = nextPage,
+                            cocktails     = s.cocktails + newItems,
+                            canLoadMore   = newItems.size >= PAGE_SIZE,
+                        )
+                    }
+                }
+                .onFailure {
+                    _ui.update { it.copy(isLoadingMore = false) }
+                }
         }
+    }
+
+    fun refresh() = load(refresh = true)
+
+    // ── Search ────────────────────────────────────────────────────────────────
+
+    fun setSearch(query: String) {
+        _ui.update { it.copy(searchQuery = query) }
+    }
+
+    // ── Category ──────────────────────────────────────────────────────────────
+
+    fun setCategory(category: String) {
+        if (_ui.value.selectedCategory == category) return
+        _ui.update { it.copy(selectedCategory = category, searchQuery = "", currentPage = 0, canLoadMore = true) }
+        load(refresh = false)
     }
 
     // ── Favorites ─────────────────────────────────────────────────────────────
 
     fun toggleFavorite(idDrink: String) {
         val isFav = _ui.value.favorites.contains(idDrink)
-        _ui.update { state ->
-            val newFavs = if (isFav) state.favorites - idDrink else state.favorites + idDrink
-            state.copy(favorites = newFavs)
+        _ui.update { s ->
+            s.copy(favorites = if (isFav) s.favorites - idDrink else s.favorites + idDrink)
         }
         viewModelScope.launch {
             val result = if (isFav) repo.removeFavorite(idDrink) else repo.addFavorite(idDrink)
             if (result.isFailure) {
-                _ui.update { state ->
-                    val reverted = if (isFav) state.favorites + idDrink else state.favorites - idDrink
-                    state.copy(favorites = reverted, error = result.exceptionOrNull()?.message)
+                _ui.update { s ->
+                    s.copy(favorites = if (isFav) s.favorites + idDrink else s.favorites - idDrink)
                 }
             }
         }
@@ -98,79 +153,62 @@ class CocktailViewModel @Inject constructor(
     fun createCocktail(cocktail: Cocktail) {
         viewModelScope.launch {
             repo.createCocktail(cocktail).onSuccess { created ->
-                _ui.update { state ->
-                    state.copy(
-                        cocktails            = state.cocktails + created,
+                _ui.update { s ->
+                    s.copy(
+                        cocktails            = listOf(created) + s.cocktails,
                         recipeEditorCocktail = null,
                         toastMessage         = "${created.strDrink} created!",
                     )
                 }
-            }.onFailure { e ->
-                _ui.update { it.copy(error = e.message) }
-            }
+            }.onFailure { e -> _ui.update { it.copy(error = e.message) } }
         }
     }
 
     fun updateCocktail(cocktail: Cocktail) {
         viewModelScope.launch {
             repo.updateCocktail(cocktail).onSuccess { updated ->
-                _ui.update { state ->
-                    state.copy(
-                        cocktails            = state.cocktails.map {
-                            if (it.idDrink == updated.idDrink) updated else it
-                        },
+                _ui.update { s ->
+                    s.copy(
+                        cocktails            = s.cocktails.map { if (it.idDrink == updated.idDrink) updated else it },
                         recipeEditorCocktail = null,
                         toastMessage         = "${updated.strDrink} updated!",
                     )
                 }
-            }.onFailure { e ->
-                _ui.update { it.copy(error = e.message) }
-            }
+            }.onFailure { e -> _ui.update { it.copy(error = e.message) } }
         }
     }
 
     fun deleteCocktail(idDrink: String) {
         viewModelScope.launch {
             repo.deleteCocktail(idDrink).onSuccess {
-                _ui.update { state ->
-                    state.copy(
-                        cocktails             = state.cocktails.filter { it.idDrink != idDrink },
-                        favorites             = state.favorites - idDrink,
+                _ui.update { s ->
+                    s.copy(
+                        cocktails             = s.cocktails.filter { it.idDrink != idDrink },
+                        favorites             = s.favorites - idDrink,
                         deleteConfirmCocktail = null,
                         toastMessage          = "Recipe deleted",
                     )
                 }
-            }.onFailure { e ->
-                _ui.update { it.copy(error = e.message) }
-            }
+            }.onFailure { e -> _ui.update { it.copy(error = e.message) } }
         }
     }
 
     // ── Recipe editor ─────────────────────────────────────────────────────────
 
-    fun requestCreateRecipe() {
+    fun requestCreateRecipe() =
         _ui.update { it.copy(recipeEditorCocktail = emptyCocktail(), isCreatingRecipe = true) }
-    }
 
-    fun requestEdit(cocktail: Cocktail) {
+    fun requestEdit(cocktail: Cocktail) =
         _ui.update { it.copy(recipeEditorCocktail = cocktail, isCreatingRecipe = false) }
-    }
 
-    fun dismissRecipeEditor() {
+    fun dismissRecipeEditor() =
         _ui.update { it.copy(recipeEditorCocktail = null) }
-    }
 
-    // ── Delete confirm ────────────────────────────────────────────────────────
-
-    fun requestDelete(cocktail: Cocktail) {
+    fun requestDelete(cocktail: Cocktail) =
         _ui.update { it.copy(deleteConfirmCocktail = cocktail) }
-    }
 
-    fun dismissDeleteConfirm() {
+    fun dismissDeleteConfirm() =
         _ui.update { it.copy(deleteConfirmCocktail = null) }
-    }
-
-    // ── Misc ──────────────────────────────────────────────────────────────────
 
     fun dismissToast() = _ui.update { it.copy(toastMessage = null) }
     fun dismissError()  = _ui.update { it.copy(error = null) }

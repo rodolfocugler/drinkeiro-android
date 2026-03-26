@@ -20,8 +20,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "http://pi-desktop:5001/api/"
-
+    private const val BASE_URL = "https://cocktail-api-0x99.onrender.com/api/"
     @Provides
     @Singleton
     fun provideJson(): Json = Json {

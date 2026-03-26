@@ -15,53 +15,50 @@ interface DrinkeiroApi {
 
     // ── Cocktails ─────────────────────────────────────────────────────────────
 
-    /** Get all cocktails (optionally filtered by category) */
-//    @GET("drinks")
-//    suspend fun getCocktails(
-//        @Query("filter") category: String? = null,
-//    ): Response<ApiList<Cocktail>>
-
-    @GET("drinks")
+    /** Get all cocktails (optionally filtered by category, with pagination) */
+    @GET("cocktails")
     suspend fun getCocktails(
-        @Query("filter") category: String? = null,
-    ): Response<List<Cocktail>>
+        @Query("category") category: String? = null,
+        @Query("page")     page:     Int     = 0,
+        @Query("pageSize") pageSize: Int     = 20,
+    ): Response<ApiList<Cocktail>>
 
     /** Get a single cocktail by id */
-    @GET("drinks/{id}")
+    @GET("cocktails/{id}")
     suspend fun getCocktail(
         @Path("id") id: String,
     ): Response<Cocktail>
 
     /** Create a new cocktail recipe */
-    @POST("drinks")
+    @POST("cocktails")
     suspend fun createCocktail(
         @Body cocktail: Cocktail,
     ): Response<Cocktail>
 
     /** Update an existing cocktail recipe */
-    @PUT("drinks/{id}")
+    @PUT("cocktails/{id}")
     suspend fun updateCocktail(
         @Path("id") id: String,
         @Body cocktail: Cocktail,
     ): Response<Cocktail>
 
     /** Delete a cocktail recipe */
-    @DELETE("drinks/{id}")
+    @DELETE("cocktails/{id}")
     suspend fun deleteCocktail(
         @Path("id") id: String,
     ): Response<Unit>
 
     // ── Favorites ─────────────────────────────────────────────────────────────
 
-    @GET("drinks/favorites")
+    @GET("cocktails/favorites")
     suspend fun getFavorites(): Response<ApiList<Cocktail>>
 
-    @PUT("drinks/favorites/{idDrink}")
+    @PATCH("cocktails/favorites/{idDrink}")
     suspend fun addFavorite(
         @Path("idDrink") idDrink: String,
     ): Response<Unit>
 
-    @DELETE("favorites/{idDrink}")
+    @DELETE("cocktails/favorites/{idDrink}")
     suspend fun removeFavorite(
         @Path("idDrink") idDrink: String,
     ): Response<Unit>

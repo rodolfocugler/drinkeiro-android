@@ -2,5 +2,7 @@
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
         <domain>pi-desktop</domain>
+        <domain>172.20.10.2</domain>
+        <domain>cocktail-api-0x99.onrender.com</domain>
     </domain-config>
 </network-security-config>

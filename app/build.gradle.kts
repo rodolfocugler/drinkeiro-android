@@ -19,7 +19,8 @@ android {
         versionName     = "1.0.0"
 
         // Replace with your actual Web Client ID from Google Cloud Console
-        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\".apps.googleusercontent.com\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"631600537622-421l81q1vt34ku4f72vv9ool4br83ug5.apps.googleusercontent.com\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_SECRET", "\"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\"")
     }
 
     buildTypes {
@@ -86,3 +87,4 @@ dependencies {
 }
 
 kapt { correctErrorTypes = true }
+

@@ -1,6 +1,5 @@
 package com.drinkeiro.viewmodel
 
-import android.annotation.SuppressLint
 import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.pm.PackageManager
@@ -59,22 +58,22 @@ class AuthViewModel @Inject constructor(
                 val idToken = googleCredential.idToken
 
                 // Send token to our backend
-                _state.value = AuthState.Success
-//                val response = api.loginWithGoogle(GoogleAuthRequest(idToken))
-//                if (response.isSuccessful) {
-//                    val body = response.body()!!
-//                    session.saveSession(
-//                        token = body.token,
-//                        userId = body.userId,
-//                        name = body.name,
-//                        email = body.email,
-//                        photoUrl = body.photoUrl,
-//                    )
-//                    _state.value = AuthState.Success
-//                } else {
-//                    _state.value = AuthState.Error("Server error: ${response.code()}")
-//                }
+                val response = api.loginWithGoogle(GoogleAuthRequest(idToken))
+                if (response.isSuccessful) {
+                    val body = response.body()!!
+                    session.saveSession(
+                        accessToken = body.accessToken,
+                        refreshToken = body.refreshToken,
+                        userId = body.userId,
+                        name = body.name,
+                        email = body.email,
+                    )
+                    _state.value = AuthState.Success
+                } else {
+                    _state.value = AuthState.Error("Server error: ${response.code()}")
+                }
             } catch (e: Exception) {
+                Log.e(TAG, "Exception: ${e::class.simpleName}: ${e.message}")
                 _state.value = AuthState.Error(e.message ?: "Sign-in failed")
             }
         }
