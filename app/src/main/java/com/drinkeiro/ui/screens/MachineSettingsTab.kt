@@ -60,6 +60,16 @@ fun MachineSettingsTab(vm: MachineViewModel) {
                             )
                         }
                     }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AmberChip(
+                            text    = "👥",
+                            onClick = { vm.showCollaboratorsDialog() },
+                        )
+                        AmberChip(
+                            text    = "+ Machine",
+                            onClick = { vm.showCreateMachineDialog() },
+                        )
+                    }
                 }
             }
         }
@@ -331,9 +341,9 @@ fun MachineSwitcherSheet(vm: MachineViewModel, onDismiss: () -> Unit) {
                 }
             }
 
-            // Add new machine (stub)
+            // Add new machine
             Surface(
-                onClick = { /* TODO: navigate to new machine flow */ },
+                onClick = { vm.showCreateMachineDialog(); onDismiss() },
                 shape   = RoundedCornerShape(16.dp),
                 color   = c.bg3,
                 border  = BorderStroke(1.5.dp, c.border),
@@ -342,7 +352,7 @@ fun MachineSwitcherSheet(vm: MachineViewModel, onDismiss: () -> Unit) {
                     modifier = Modifier.fillMaxWidth().padding(14.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("+ Add New Machine", color = c.cream3, style = MaterialTheme.typography.bodyMedium)
+                    Text("+ New Machine", color = c.cream2, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

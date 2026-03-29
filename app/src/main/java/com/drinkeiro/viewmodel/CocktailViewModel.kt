@@ -45,7 +45,7 @@ data class CocktailUiState(
         return if (q.isBlank()) cocktails
         else cocktails.filter { c ->
             c.strDrink.lowercase().contains(q) ||
-            c.strIngredient.any { it.strIngredient!!.lowercase().contains(q) } ||
+            c.strIngredient.any { it.strIngredient.lowercase().contains(q) } ||
             c.strCategory.lowercase().contains(q)
         }
     }

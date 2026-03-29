@@ -17,8 +17,8 @@ class CocktailRepository @Inject constructor(
 
     suspend fun getCocktails(
         category: String? = null,
-        page: Int = 0,
-        pageSize: Int = 20,
+        page:     Int     = 0,
+        pageSize: Int     = 20,
     ): Result<List<Cocktail>> {
         return try {
             val r = api.getCocktails(category = category, page = page, pageSize = pageSize)
@@ -43,10 +43,10 @@ class CocktailRepository @Inject constructor(
 
     private fun localPage(category: String?, page: Int, pageSize: Int): List<Cocktail> {
         val filtered = if (category == null) localCocktails
-        else localCocktails.filter { it.strCategory == category }
+                       else localCocktails.filter { it.strCategory == category }
         val from = page * pageSize
         return if (from >= filtered.size) emptyList()
-        else filtered.subList(from, minOf(from + pageSize, filtered.size))
+               else filtered.subList(from, minOf(from + pageSize, filtered.size))
     }
 
     suspend fun getCocktail(id: String): Result<Cocktail> = try {
@@ -64,9 +64,7 @@ class CocktailRepository @Inject constructor(
         return try {
             val r = api.createCocktail(cocktail)
             if (r.isSuccessful) Result.success(r.body()!!) else Result.success(cocktail)
-        } catch (e: Exception) {
-            Result.success(cocktail)
-        }
+        } catch (e: Exception) { Result.success(cocktail) }
     }
 
     suspend fun updateCocktail(cocktail: Cocktail): Result<Cocktail> {
@@ -75,9 +73,7 @@ class CocktailRepository @Inject constructor(
         return try {
             val r = api.updateCocktail(cocktail.idDrink, cocktail)
             if (r.isSuccessful) Result.success(r.body()!!) else Result.success(cocktail)
-        } catch (e: Exception) {
-            Result.success(cocktail)
-        }
+        } catch (e: Exception) { Result.success(cocktail) }
     }
 
     suspend fun deleteCocktail(id: String): Result<Unit> {
@@ -85,15 +81,13 @@ class CocktailRepository @Inject constructor(
         return try {
             val r = api.deleteCocktail(id)
             Result.success(Unit)
-        } catch (e: Exception) {
-            Result.success(Unit)
-        }
+        } catch (e: Exception) { Result.success(Unit) }
     }
 
     suspend fun getFavorites(): Result<List<Cocktail>> = try {
         val r = api.getFavorites()
         if (r.isSuccessful) {
-            val list = r.body()!!.content
+            val list = r.body()!!
             localFavorites.clear()
             localFavorites.addAll(list.map { it.idDrink })
             Result.success(list)
@@ -106,19 +100,13 @@ class CocktailRepository @Inject constructor(
 
     suspend fun addFavorite(idDrink: String): Result<Unit> {
         localFavorites.add(idDrink)
-        return try {
-            api.addFavorite(idDrink); Result.success(Unit)
-        } catch (e: Exception) {
-            Result.success(Unit)
-        }
+        return try { api.addFavorite(idDrink); Result.success(Unit) }
+        catch (e: Exception) { Result.success(Unit) }
     }
 
     suspend fun removeFavorite(idDrink: String): Result<Unit> {
         localFavorites.remove(idDrink)
-        return try {
-            api.removeFavorite(idDrink); Result.success(Unit)
-        } catch (e: Exception) {
-            Result.success(Unit)
-        }
+        return try { api.removeFavorite(idDrink); Result.success(Unit) }
+        catch (e: Exception) { Result.success(Unit) }
     }
 }

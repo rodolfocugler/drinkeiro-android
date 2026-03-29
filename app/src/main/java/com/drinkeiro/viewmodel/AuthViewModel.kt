@@ -1,28 +1,25 @@
 package com.drinkeiro.viewmodel
 
-import android.content.ContentValues.TAG
 import android.content.Context
-import android.content.pm.PackageManager
-import android.os.Build
-import android.util.Base64
 import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.drinkeiro.BuildConfig
 import com.drinkeiro.data.api.DrinkeiroApi
 import com.drinkeiro.data.model.GoogleAuthRequest
 import com.drinkeiro.data.repository.SessionRepository
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.security.MessageDigest
 import javax.inject.Inject
+
+private const val TAG = "DrinkeiroAuth"
 
 sealed interface AuthState {
     object Idle : AuthState
@@ -55,27 +52,40 @@ class AuthViewModel @Inject constructor(
 
                 val result = credentialManager.getCredential(context, request)
                 val googleCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
-                val idToken = googleCredential.idToken
-
-                // Send token to our backend
-                val response = api.loginWithGoogle(GoogleAuthRequest(idToken))
-                if (response.isSuccessful) {
-                    val body = response.body()!!
-                    session.saveSession(
-                        accessToken = body.accessToken,
-                        refreshToken = body.refreshToken,
-                        userId = body.userId,
-                        name = body.name,
-                        email = body.email,
-                    )
-                    _state.value = AuthState.Success
-                } else {
-                    _state.value = AuthState.Error("Server error: ${response.code()}")
-                }
+                Log.d(TAG, "Got ID token for ${googleCredential.id}")
+                sendTokenToBackend(idToken = googleCredential.idToken)
+            } catch (e: GetCredentialException) {
+                Log.e(TAG, "GetCredentialException type=${e.type}: ${e.message}")
+                _state.value = AuthState.Error("Sign-in failed: ${e.message}")
             } catch (e: Exception) {
-                Log.e(TAG, "Exception: ${e::class.simpleName}: ${e.message}")
+                Log.e(TAG, "Unexpected: ${e::class.simpleName}: ${e.message}")
                 _state.value = AuthState.Error(e.message ?: "Sign-in failed")
             }
+        }
+    }
+
+    private suspend fun sendTokenToBackend(idToken: String) {
+        try {
+            val response = api.loginWithGoogle(GoogleAuthRequest(idToken))
+            if (response.isSuccessful) {
+                val body = response.body()!!
+                session.saveSession(
+                    token = body.accessToken,
+                    refreshToken = body.refreshToken,
+                    userId = body.userId,
+                    name = body.name,
+                    email = body.email,
+                    photoUrl = body.photoUrl,
+                )
+                _state.value = AuthState.Success
+            } else {
+                Log.e(TAG, "Backend error ${response.code()}")
+                _state.value = AuthState.Error("Backend error ${response.code()}")
+            }
+        } catch (e: Exception) {
+            // Backend unreachable — allow dev login with Google identity
+            Log.e(TAG, "Exception: ${e::class.simpleName}: ${e.message}")
+            _state.value = AuthState.Error(e.message ?: "Sign-in failed")
         }
     }
 }

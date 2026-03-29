@@ -21,11 +21,12 @@ import javax.inject.Singleton
 object NetworkModule {
 
     private const val BASE_URL = "https://cocktail-api-0x99.onrender.com/api/"
+
     @Provides
     @Singleton
     fun provideJson(): Json = Json {
         ignoreUnknownKeys = true
-        isLenient         = true
+        isLenient = true
         coerceInputValues = true
     }
 

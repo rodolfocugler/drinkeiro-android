@@ -13,6 +13,14 @@ interface DrinkeiroApi {
         @Body body: GoogleAuthRequest,
     ): Response<AuthResponse>
 
+    @POST("auth/refresh")
+    suspend fun refreshToken(
+        @Body body: RefreshTokenRequest,
+    ): Response<AuthResponse>
+
+    @POST("auth/logout")
+    suspend fun logout(): Response<Unit>
+
     // ── Cocktails ─────────────────────────────────────────────────────────────
 
     /** Get all cocktails (optionally filtered by category, with pagination) */
@@ -51,7 +59,7 @@ interface DrinkeiroApi {
     // ── Favorites ─────────────────────────────────────────────────────────────
 
     @GET("cocktails/favorites")
-    suspend fun getFavorites(): Response<ApiList<Cocktail>>
+    suspend fun getFavorites(): Response<List<Cocktail>>
 
     @PATCH("cocktails/favorites/{idDrink}")
     suspend fun addFavorite(
@@ -100,10 +108,10 @@ interface DrinkeiroApi {
     ): Response<Unit>
 
     /** Add a collaborator by email */
-    @POST("machines/{id}/collaborators")
+    @POST("machines/{id}/collaborators/{email}")
     suspend fun addCollaborator(
         @Path("id") machineId: String,
-        @Query("email") email: String,
+        @Path("email") email: String,
     ): Response<Machine>
 
     @DELETE("machines/{id}/collaborators/{email}")
@@ -117,7 +125,7 @@ interface DrinkeiroApi {
     @GET("machines/{machineId}/pumps")
     suspend fun getPumps(
         @Path("machineId") machineId: String,
-    ): Response<ApiList<Pump>>
+    ): Response<List<Pump>>
 
     @POST("machines/{machineId}/pumps")
     suspend fun createPump(

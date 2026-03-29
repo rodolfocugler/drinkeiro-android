@@ -32,6 +32,31 @@ class MachineRepository @Inject constructor(
         }
     }
 
+    suspend fun createMachine(machine: Machine): Result<Machine> {
+        val temp = machine.copy(id = "local_${System.currentTimeMillis()}")
+        localMachines.add(temp)
+        return try {
+            val r = api.createMachine(machine)
+            if (r.isSuccessful) {
+                val created = r.body()!!
+                // Replace temp local entry with real one from server
+                val idx = localMachines.indexOfFirst { it.id == temp.id }
+                if (idx >= 0) localMachines[idx] = created
+                Result.success(created)
+            } else {
+                Result.success(temp)
+            }
+        } catch (e: Exception) { Result.success(temp) }
+    }
+
+    suspend fun deleteMachine(machineId: String): Result<Unit> {
+        localMachines.removeAll { it.id == machineId }
+        return try {
+            api.deleteMachine(machineId)
+            Result.success(Unit)
+        } catch (e: Exception) { Result.success(Unit) }
+    }
+
     suspend fun brew(machineId: String, request: BrewRequest): Result<BrewResponse> {
         // Log locally regardless of backend
         val entry = HistoryEntry(
@@ -70,7 +95,7 @@ class MachineRepository @Inject constructor(
         return try {
             val r = api.getPumps(machineId)
             if (r.isSuccessful) {
-                val list = r.body()!!.content
+                val list = r.body()!!
                 localPumps.clear(); localPumps.addAll(list)
                 Result.success(localPumps.toList())
             } else {
@@ -87,9 +112,7 @@ class MachineRepository @Inject constructor(
         return try {
             val r = api.createPump(machineId, pump)
             if (r.isSuccessful) Result.success(r.body()!!) else Result.success(pump)
-        } catch (e: Exception) {
-            Result.success(pump)
-        }
+        } catch (e: Exception) { Result.success(pump) }
     }
 
     suspend fun updatePump(machineId: String, pump: Pump): Result<Pump> {
@@ -98,9 +121,7 @@ class MachineRepository @Inject constructor(
         return try {
             val r = api.updatePump(machineId, pump.pumpNumber, pump)
             if (r.isSuccessful) Result.success(r.body()!!) else Result.success(pump)
-        } catch (e: Exception) {
-            Result.success(pump)
-        }
+        } catch (e: Exception) { Result.success(pump) }
     }
 
     suspend fun deletePump(machineId: String, pumpNumber: Int): Result<Unit> {
@@ -108,18 +129,14 @@ class MachineRepository @Inject constructor(
         return try {
             val r = api.deletePump(machineId, pumpNumber)
             if (r.isSuccessful) Result.success(Unit) else Result.success(Unit)
-        } catch (e: Exception) {
-            Result.success(Unit)
-        }
+        } catch (e: Exception) { Result.success(Unit) }
     }
 
     suspend fun triggerPump(machineId: String, pumpNumber: Int): Result<Unit> {
         return try {
             val r = api.triggerPump(machineId, pumpNumber)
             if (r.isSuccessful) Result.success(Unit) else Result.success(Unit)
-        } catch (e: Exception) {
-            Result.success(Unit)
-        }
+        } catch (e: Exception) { Result.success(Unit) }
     }
 
     suspend fun addCollaborator(machineId: String, email: String): Result<Machine> {
@@ -131,9 +148,7 @@ class MachineRepository @Inject constructor(
         return try {
             val r = api.addCollaborator(machineId, email)
             if (r.isSuccessful) Result.success(r.body()!!) else Result.success(updated)
-        } catch (e: Exception) {
-            Result.success(updated)
-        }
+        } catch (e: Exception) { Result.success(updated) }
     }
 
     suspend fun removeCollaborator(machineId: String, email: String): Result<Machine> {
@@ -145,8 +160,6 @@ class MachineRepository @Inject constructor(
         return try {
             val r = api.removeCollaborator(machineId, email)
             if (r.isSuccessful) Result.success(r.body()!!) else Result.success(updated)
-        } catch (e: Exception) {
-            Result.success(updated)
-        }
+        } catch (e: Exception) { Result.success(updated) }
     }
 }
