@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.drinkeiro.data.model.Cocktail
 import com.drinkeiro.data.repository.CocktailRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -13,7 +14,8 @@ private var _idCounter = 90000
 private fun newId() = "custom_${++_idCounter}"
 
 private fun emptyCocktail() = Cocktail(
-    idDrink       = newId(),
+    id            = newId(),
+    idDrink       = "",
     strDrink      = "",
     strCategory   = "Cocktail",
     strAlcoholic  = "Alcoholic",
@@ -21,37 +23,51 @@ private fun emptyCocktail() = Cocktail(
     strIngredient = emptyList(),
 )
 
-private const val PAGE_SIZE = 20
+private const val PAGE_SIZE    = 20
+private const val SEARCH_DELAY = 400L   // ms debounce before sending search to backend
 
 data class CocktailUiState(
-    val cocktails:             List<Cocktail> = emptyList(),
-    val favorites:             Set<String>    = emptySet(),
-    val selectedCategory:      String         = "All",
-    val searchQuery:           String         = "",
-    val isLoading:             Boolean        = false,
-    val isLoadingMore:         Boolean        = false,
-    val isRefreshing:          Boolean        = false,
-    val canLoadMore:           Boolean        = true,
-    val currentPage:           Int            = 0,
+    // ── Cocktails tab ─────────────────────────────────────────────────────────
+    val cocktails:         List<Cocktail> = emptyList(),
+    val selectedCategory:  String         = "All",
+    val searchQuery:       String         = "",
+    val isLoading:         Boolean        = false,
+    val isLoadingMore:     Boolean        = false,
+    val isRefreshing:      Boolean        = false,
+    val canLoadMore:       Boolean        = true,
+    val currentPage:       Int            = 0,
+
+    // ── Favorites tab — own independent list from backend ─────────────────────
+    val favorites:            List<Cocktail> = emptyList(),   // full objects, not just ids
+    val favSearchQuery:       String         = "",
+    val isFavLoading:         Boolean        = false,
+    val isFavLoadingMore:     Boolean        = false,
+    val isFavRefreshing:      Boolean        = false,
+    val canFavLoadMore:       Boolean        = true,
+    val favCurrentPage:       Int            = 0,
+
+    // ── Shared ────────────────────────────────────────────────────────────────
     val error:                 String?        = null,
     val toastMessage:          String?        = null,
     val recipeEditorCocktail:  Cocktail?      = null,
     val isCreatingRecipe:      Boolean        = false,
     val deleteConfirmCocktail: Cocktail?      = null,
 ) {
-    // Filtered view applying search query on top of loaded cocktails
-    val filtered: List<Cocktail> get() {
-        val q = searchQuery.trim().lowercase()
-        return if (q.isBlank()) cocktails
-        else cocktails.filter { c ->
+    /** IDs of favorite cocktails — used to show ☆/★ on cocktail cards */
+    val favoriteIds: Set<String> get() = favorites.map { it.id }.toSet()
+
+    /** Displayed favorites filtered by local search text */
+    val favFiltered: List<Cocktail> get() {
+        val q = favSearchQuery.trim().lowercase()
+        return if (q.isBlank()) favorites
+        else favorites.filter { c ->
             c.strDrink.lowercase().contains(q) ||
-            c.strIngredient.any { it.strIngredient.lowercase().contains(q) } ||
-            c.strCategory.lowercase().contains(q)
+            c.strIngredient.any { it.strIngredient.lowercase().contains(q) }
         }
     }
-    val favFiltered: List<Cocktail> get() = filtered.filter { favorites.contains(it.idDrink) }
 }
 
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class CocktailViewModel @Inject constructor(
     private val repo: CocktailRepository,
@@ -60,67 +76,154 @@ class CocktailViewModel @Inject constructor(
     private val _ui = MutableStateFlow(CocktailUiState())
     val ui = _ui.asStateFlow()
 
-    init { load(refresh = false) }
+    // Internal search query flow used to debounce API calls
+    private val _searchQuery    = MutableStateFlow("")
+    private val _favSearchQuery = MutableStateFlow("")
 
-    // ── Load / Refresh / Load more ────────────────────────────────────────────
+    init {
+        loadCocktails(refresh = false)
+        loadFavorites(refresh = false)
 
-    fun load(refresh: Boolean = false) {
+        // Debounce cocktails search → send to backend
+        viewModelScope.launch {
+            _searchQuery
+                .debounce(SEARCH_DELAY)
+                .distinctUntilChanged()
+                .collectLatest { query ->
+                    _ui.update { it.copy(currentPage = 0, canLoadMore = true, isLoading = true) }
+                    val cat = _ui.value.selectedCategory.takeIf { it != "All" }
+                    repo.getCocktails(category = cat, search = query.ifBlank { null }, page = 0, pageSize = PAGE_SIZE)
+                        .onSuccess { list ->
+                            _ui.update { s ->
+                                s.copy(cocktails = list, isLoading = false, canLoadMore = list.size >= PAGE_SIZE, currentPage = 0)
+                            }
+                        }
+                        .onFailure { _ui.update { it.copy(isLoading = false) } }
+                }
+        }
+
+        // Debounce favorites search — local only (backend doesn't expose favorite search)
+        viewModelScope.launch {
+            _favSearchQuery
+                .debounce(200L)
+                .distinctUntilChanged()
+                .collect { query ->
+                    _ui.update { it.copy(favSearchQuery = query) }
+                }
+        }
+    }
+
+    // ── Cocktails load / refresh / loadMore ───────────────────────────────────
+
+    fun loadCocktails(refresh: Boolean = false) {
         if (_ui.value.isLoading || _ui.value.isRefreshing) return
         viewModelScope.launch {
-            if (refresh) {
-                _ui.update { it.copy(isRefreshing = true, currentPage = 0, canLoadMore = true) }
-            } else {
-                _ui.update { it.copy(isLoading = true, error = null) }
-            }
+            if (refresh) _ui.update { it.copy(isRefreshing = true, currentPage = 0, canLoadMore = true) }
+            else         _ui.update { it.copy(isLoading = true, error = null) }
 
-            val cat = _ui.value.selectedCategory.takeIf { it != "All" }
-            val cocktailsResult = repo.getCocktails(category = cat, page = 0, pageSize = PAGE_SIZE)
-            val favoritesResult = repo.getFavorites()
-
-            _ui.update { state ->
-                state.copy(
-                    isLoading    = false,
-                    isRefreshing = false,
-                    currentPage  = 0,
-                    cocktails    = cocktailsResult.getOrElse { state.cocktails },
-                    canLoadMore  = (cocktailsResult.getOrElse { emptyList() }.size >= PAGE_SIZE),
-                    favorites    = favoritesResult.getOrElse { emptyList() }.map { it.idDrink }.toSet(),
-                    error        = cocktailsResult.exceptionOrNull()?.message,
-                )
-            }
+            val cat   = _ui.value.selectedCategory.takeIf { it != "All" }
+            val query = _ui.value.searchQuery.ifBlank { null }
+            repo.getCocktails(category = cat, search = query, page = 0, pageSize = PAGE_SIZE)
+                .onSuccess { list ->
+                    _ui.update { s ->
+                        s.copy(
+                            isLoading    = false,
+                            isRefreshing = false,
+                            currentPage  = 0,
+                            cocktails    = list,
+                            canLoadMore  = list.size >= PAGE_SIZE,
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    _ui.update { it.copy(isLoading = false, isRefreshing = false, error = e.message) }
+                }
         }
     }
 
     fun loadMore() {
-        val state = _ui.value
-        if (!state.canLoadMore || state.isLoadingMore || state.isLoading || state.isRefreshing) return
-        val nextPage = state.currentPage + 1
+        val s = _ui.value
+        if (!s.canLoadMore || s.isLoadingMore || s.isLoading || s.isRefreshing) return
+        val nextPage = s.currentPage + 1
         viewModelScope.launch {
             _ui.update { it.copy(isLoadingMore = true) }
-            val cat = state.selectedCategory.takeIf { it != "All" }
-            repo.getCocktails(category = cat, page = nextPage, pageSize = PAGE_SIZE)
+            val cat   = s.selectedCategory.takeIf { it != "All" }
+            val query = s.searchQuery.ifBlank { null }
+            repo.getCocktails(category = cat, search = query, page = nextPage, pageSize = PAGE_SIZE)
                 .onSuccess { newItems ->
-                    _ui.update { s ->
-                        s.copy(
+                    _ui.update { st ->
+                        st.copy(
                             isLoadingMore = false,
                             currentPage   = nextPage,
-                            cocktails     = s.cocktails + newItems,
+                            cocktails     = st.cocktails + newItems,
                             canLoadMore   = newItems.size >= PAGE_SIZE,
                         )
                     }
                 }
-                .onFailure {
-                    _ui.update { it.copy(isLoadingMore = false) }
+                .onFailure { _ui.update { it.copy(isLoadingMore = false) } }
+        }
+    }
+
+    fun refresh() = loadCocktails(refresh = true)
+
+    // ── Favorites load / refresh / loadMore ───────────────────────────────────
+
+    fun loadFavorites(refresh: Boolean = false) {
+        if (_ui.value.isFavLoading || _ui.value.isFavRefreshing) return
+        viewModelScope.launch {
+            if (refresh) _ui.update { it.copy(isFavRefreshing = true, favCurrentPage = 0, canFavLoadMore = true) }
+            else         _ui.update { it.copy(isFavLoading = true) }
+
+            repo.getFavorites(page = 0, search = _searchQuery.value.ifBlank { null }, pageSize = PAGE_SIZE)
+                .onSuccess { list ->
+                    _ui.update { s ->
+                        s.copy(
+                            isFavLoading    = false,
+                            isFavRefreshing = false,
+                            favCurrentPage  = 0,
+                            favorites       = list,
+                            canFavLoadMore  = list.size >= PAGE_SIZE,
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    _ui.update { it.copy(isFavLoading = false, isFavRefreshing = false, error = e.message) }
                 }
         }
     }
 
-    fun refresh() = load(refresh = true)
+    fun loadMoreFavorites() {
+        val s = _ui.value
+        if (!s.canFavLoadMore || s.isFavLoadingMore || s.isFavLoading || s.isFavRefreshing) return
+        val nextPage = s.favCurrentPage + 1
+        viewModelScope.launch {
+            _ui.update { it.copy(isFavLoadingMore = true) }
+            repo.getFavorites(page = nextPage, pageSize = PAGE_SIZE)
+                .onSuccess { newItems ->
+                    _ui.update { st ->
+                        st.copy(
+                            isFavLoadingMore = false,
+                            favCurrentPage   = nextPage,
+                            favorites        = st.favorites + newItems,
+                            canFavLoadMore   = newItems.size >= PAGE_SIZE,
+                        )
+                    }
+                }
+                .onFailure { _ui.update { it.copy(isFavLoadingMore = false) } }
+        }
+    }
+
+    fun refreshFavorites() = loadFavorites(refresh = true)
 
     // ── Search ────────────────────────────────────────────────────────────────
 
     fun setSearch(query: String) {
         _ui.update { it.copy(searchQuery = query) }
+        _searchQuery.value = query   // triggers debounced backend call
+    }
+
+    fun setFavSearch(query: String) {
+        _favSearchQuery.value = query   // local filter only, no API call
     }
 
     // ── Category ──────────────────────────────────────────────────────────────
@@ -128,22 +231,26 @@ class CocktailViewModel @Inject constructor(
     fun setCategory(category: String) {
         if (_ui.value.selectedCategory == category) return
         _ui.update { it.copy(selectedCategory = category, searchQuery = "", currentPage = 0, canLoadMore = true) }
-        load(refresh = false)
+        _searchQuery.value = ""
+        loadCocktails(refresh = false)
     }
 
-    // ── Favorites ─────────────────────────────────────────────────────────────
+    // ── Toggle favorite ───────────────────────────────────────────────────────
 
-    fun toggleFavorite(idDrink: String) {
-        val isFav = _ui.value.favorites.contains(idDrink)
-        _ui.update { s ->
-            s.copy(favorites = if (isFav) s.favorites - idDrink else s.favorites + idDrink)
-        }
+    fun toggleFavorite(id: String) {
+        val isFav = _ui.value.favoriteIds.contains(id)
         viewModelScope.launch {
-            val result = if (isFav) repo.removeFavorite(idDrink) else repo.addFavorite(idDrink)
-            if (result.isFailure) {
-                _ui.update { s ->
-                    s.copy(favorites = if (isFav) s.favorites + idDrink else s.favorites - idDrink)
+            if (isFav) {
+                // Optimistic remove
+                _ui.update { s -> s.copy(favorites = s.favorites.filter { it.id != id }) }
+                val result = repo.removeFavorite(id)
+                if (result.isFailure) {
+                    // Rollback — reload from backend
+                    loadFavorites()
                 }
+            } else {
+                // Add — reload favorites from backend to get the full object
+                repo.addFavorite(id).onSuccess { loadFavorites() }
             }
         }
     }
@@ -170,6 +277,8 @@ class CocktailViewModel @Inject constructor(
                 _ui.update { s ->
                     s.copy(
                         cocktails            = s.cocktails.map { if (it.idDrink == updated.idDrink) updated else it },
+                        // Also update in favorites list if present
+                        favorites            = s.favorites.map { if (it.idDrink == updated.idDrink) updated else it },
                         recipeEditorCocktail = null,
                         toastMessage         = "${updated.strDrink} updated!",
                     )
@@ -184,7 +293,7 @@ class CocktailViewModel @Inject constructor(
                 _ui.update { s ->
                     s.copy(
                         cocktails             = s.cocktails.filter { it.idDrink != idDrink },
-                        favorites             = s.favorites - idDrink,
+                        favorites             = s.favorites.filter { it.idDrink != idDrink },
                         deleteConfirmCocktail = null,
                         toastMessage          = "Recipe deleted",
                     )

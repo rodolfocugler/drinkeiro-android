@@ -129,11 +129,11 @@ fun FavoritesTab(
     val listState = rememberLazyListState()
     var detail    by remember { mutableStateOf<Cocktail?>(null) }
 
-    InfiniteScrollHandler(listState = listState, onLoadMore = cocktailVm::loadMore)
+    InfiniteScrollHandler(listState = listState, onLoadMore = cocktailVm::loadMoreFavorites)
 
     PullToRefreshBox(
-        isRefreshing = ui.isRefreshing,
-        onRefresh    = cocktailVm::refresh,
+        isRefreshing = ui.isFavRefreshing,
+        onRefresh    = cocktailVm::refreshFavorites,
         modifier     = Modifier.fillMaxSize(),
     ) {
         LazyColumn(
@@ -141,16 +141,15 @@ fun FavoritesTab(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
             modifier       = Modifier.fillMaxSize(),
         ) {
-            // Search bar
+            // Search bar (local filter only)
             item {
                 SearchBar(
-                    query    = ui.searchQuery,
-                    onChange = cocktailVm::setSearch,
+                    query    = ui.favSearchQuery,
+                    onChange = cocktailVm::setFavSearch,
                     modifier = Modifier.padding(vertical = 12.dp),
                 )
             }
 
-            // Count label
             item {
                 SectionLabel(
                     text     = "${ui.favFiltered.size} saved",
@@ -158,10 +157,16 @@ fun FavoritesTab(
                 )
             }
 
-            if (ui.favFiltered.isEmpty()) {
+            if (ui.isFavLoading) {
+                item {
+                    Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = c.accent)
+                    }
+                }
+            } else if (ui.favFiltered.isEmpty()) {
                 item {
                     EmptyState(
-                        if (ui.searchQuery.isNotBlank()) "No favorites match \"${ui.searchQuery}\""
+                        if (ui.favSearchQuery.isNotBlank()) "No favorites match \"${ui.favSearchQuery}\""
                         else "No favorites yet.\nTap ☆ on any cocktail to save it."
                     )
                 }
@@ -175,15 +180,15 @@ fun FavoritesTab(
                 }
             }
 
-            if (ui.isLoadingMore) item { LoadingFooter() }
+            if (ui.isFavLoadingMore) item { LoadingFooter() }
         }
     }
 
     detail?.let { ckt ->
         CocktailDetailSheet(
             cocktail    = ckt,
-            isFav       = ui.favorites.contains(ckt.idDrink),
-            onToggleFav = { cocktailVm.toggleFavorite(ckt.idDrink) },
+            isFav       = ui.favoriteIds.contains(ckt.id),
+            onToggleFav = { cocktailVm.toggleFavorite(ckt.id) },
             onBrew      = { fc, ings -> machineVm.brew(fc, ings); detail = null },
             onEdit      = { cocktailVm.requestEdit(ckt); detail = null },
             onDelete    = { cocktailVm.requestDelete(ckt); detail = null },
@@ -261,7 +266,7 @@ fun CocktailsTab(
                         CircularProgressIndicator(color = c.accent)
                     }
                 }
-            } else if (ui.filtered.isEmpty()) {
+            } else if (ui.cocktails.isEmpty()) {
                 item {
                     EmptyState(
                         if (ui.searchQuery.isNotBlank()) "No cocktails match \"${ui.searchQuery}\""
@@ -269,10 +274,10 @@ fun CocktailsTab(
                     )
                 }
             } else {
-                items(ui.filtered, key = { it.idDrink }) { cocktail ->
+                items(ui.cocktails, key = { it.idDrink }) { cocktail ->
                     CocktailCard(
                         cocktail = cocktail,
-                        isFav    = ui.favorites.contains(cocktail.idDrink),
+                        isFav    = ui.favoriteIds.contains(cocktail.idDrink),
                         onClick  = { detail = cocktail },
                     )
                 }
@@ -285,8 +290,8 @@ fun CocktailsTab(
     detail?.let { ckt ->
         CocktailDetailSheet(
             cocktail    = ckt,
-            isFav       = ui.favorites.contains(ckt.idDrink),
-            onToggleFav = { cocktailVm.toggleFavorite(ckt.idDrink) },
+            isFav       = ui.favoriteIds.contains(ckt.id),
+            onToggleFav = { cocktailVm.toggleFavorite(ckt.id) },
             onBrew      = { fc, ings -> machineVm.brew(fc, ings); detail = null },
             onEdit      = { cocktailVm.requestEdit(ckt); detail = null },
             onDelete    = { cocktailVm.requestDelete(ckt); detail = null },
@@ -369,8 +374,8 @@ fun HistoryTab(
     detail?.let { cocktail ->
         CocktailDetailSheet(
             cocktail    = cocktail,
-            isFav       = cocktailUi.favorites.contains(cocktail.idDrink),
-            onToggleFav = { cocktailVm.toggleFavorite(cocktail.idDrink) },
+            isFav       = cocktailUi.favoriteIds.contains(cocktail.id),
+            onToggleFav = { cocktailVm.toggleFavorite(cocktail.id) },
             onBrew      = { fc, ings -> machineVm.brew(fc, ings); detail = null },
             onEdit      = { cocktailVm.requestEdit(cocktail); detail = null },
             onDelete    = { cocktailVm.requestDelete(cocktail); detail = null },

@@ -39,7 +39,6 @@ class MachineRepository @Inject constructor(
             val r = api.createMachine(machine)
             if (r.isSuccessful) {
                 val created = r.body()!!
-                // Replace temp local entry with real one from server
                 val idx = localMachines.indexOfFirst { it.id == temp.id }
                 if (idx >= 0) localMachines[idx] = created
                 Result.success(created)
@@ -47,6 +46,15 @@ class MachineRepository @Inject constructor(
                 Result.success(temp)
             }
         } catch (e: Exception) { Result.success(temp) }
+    }
+
+    suspend fun updateMachine(machine: Machine): Result<Machine> {
+        val idx = localMachines.indexOfFirst { it.id == machine.id }
+        if (idx >= 0) localMachines[idx] = machine
+        return try {
+            val r = api.updateMachine(machine.id, machine)
+            if (r.isSuccessful) Result.success(r.body()!!) else Result.success(machine)
+        } catch (e: Exception) { Result.success(machine) }
     }
 
     suspend fun deleteMachine(machineId: String): Result<Unit> {
@@ -108,7 +116,7 @@ class MachineRepository @Inject constructor(
 
     suspend fun createPump(machineId: String, pump: Pump): Result<Pump> {
         localPumps.add(pump)
-        localPumps.sortBy { it.pumpNumber }
+        localPumps.sortBy { it.port }
         return try {
             val r = api.createPump(machineId, pump)
             if (r.isSuccessful) Result.success(r.body()!!) else Result.success(pump)
@@ -116,16 +124,16 @@ class MachineRepository @Inject constructor(
     }
 
     suspend fun updatePump(machineId: String, pump: Pump): Result<Pump> {
-        val idx = localPumps.indexOfFirst { it.pumpNumber == pump.pumpNumber }
+        val idx = localPumps.indexOfFirst { it.port == pump.port }
         if (idx >= 0) localPumps[idx] = pump
         return try {
-            val r = api.updatePump(machineId, pump.pumpNumber, pump)
+            val r = api.updatePump(machineId, pump.port, pump)
             if (r.isSuccessful) Result.success(r.body()!!) else Result.success(pump)
         } catch (e: Exception) { Result.success(pump) }
     }
 
     suspend fun deletePump(machineId: String, pumpNumber: Int): Result<Unit> {
-        localPumps.removeAll { it.pumpNumber == pumpNumber }
+        localPumps.removeAll { it.port == pumpNumber }
         return try {
             val r = api.deletePump(machineId, pumpNumber)
             if (r.isSuccessful) Result.success(Unit) else Result.success(Unit)

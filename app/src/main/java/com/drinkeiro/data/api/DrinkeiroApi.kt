@@ -6,70 +6,53 @@ import retrofit2.http.*
 
 interface DrinkeiroApi {
 
-    // ── Auth ─────────────────────────────────────────────────────────────────
+    // ── Auth ──────────────────────────────────────────────────────────────────
 
     @POST("auth/google")
-    suspend fun loginWithGoogle(
-        @Body body: GoogleAuthRequest,
-    ): Response<AuthResponse>
+    suspend fun loginWithGoogle(@Body body: GoogleAuthRequest): Response<AuthResponse>
 
     @POST("auth/refresh")
-    suspend fun refreshToken(
-        @Body body: RefreshTokenRequest,
-    ): Response<AuthResponse>
+    suspend fun refreshToken(@Body body: RefreshTokenRequest): Response<AuthResponse>
 
     @POST("auth/logout")
     suspend fun logout(): Response<Unit>
 
     // ── Cocktails ─────────────────────────────────────────────────────────────
 
-    /** Get all cocktails (optionally filtered by category, with pagination) */
     @GET("cocktails")
     suspend fun getCocktails(
         @Query("category") category: String? = null,
+        @Query("filter")   search:   String? = null,
         @Query("page")     page:     Int     = 0,
         @Query("pageSize") pageSize: Int     = 20,
     ): Response<ApiList<Cocktail>>
 
-    /** Get a single cocktail by id */
     @GET("cocktails/{id}")
-    suspend fun getCocktail(
-        @Path("id") id: String,
-    ): Response<Cocktail>
+    suspend fun getCocktail(@Path("id") id: String): Response<Cocktail>
 
-    /** Create a new cocktail recipe */
     @POST("cocktails")
-    suspend fun createCocktail(
-        @Body cocktail: Cocktail,
-    ): Response<Cocktail>
+    suspend fun createCocktail(@Body cocktail: Cocktail): Response<Cocktail>
 
-    /** Update an existing cocktail recipe */
     @PUT("cocktails/{id}")
-    suspend fun updateCocktail(
-        @Path("id") id: String,
-        @Body cocktail: Cocktail,
-    ): Response<Cocktail>
+    suspend fun updateCocktail(@Path("id") id: String, @Body cocktail: Cocktail): Response<Cocktail>
 
-    /** Delete a cocktail recipe */
     @DELETE("cocktails/{id}")
-    suspend fun deleteCocktail(
-        @Path("id") id: String,
-    ): Response<Unit>
+    suspend fun deleteCocktail(@Path("id") id: String): Response<Unit>
 
-    // ── Favorites ─────────────────────────────────────────────────────────────
+    // ── Favorites — paginated list of full Cocktail objects ───────────────────
 
     @GET("cocktails/favorites")
-    suspend fun getFavorites(): Response<List<Cocktail>>
+    suspend fun getFavorites(
+        @Query("page")     page:     Int = 0,
+        @Query("filter")   search:   String? = null,
+        @Query("pageSize") pageSize: Int = 20,
+    ): Response<ApiList<Cocktail>>
 
-    @PATCH("cocktails/favorites/{idDrink}")
-    suspend fun addFavorite(
-        @Path("idDrink") idDrink: String,
-    ): Response<Unit>
+    @PATCH("cocktails/favorites/{id}")
+    suspend fun addFavorite(@Path("id") idDrink: String): Response<Unit>
 
-    @DELETE("cocktails/favorites/{idDrink}")
-    suspend fun removeFavorite(
-        @Path("idDrink") idDrink: String,
-    ): Response<Unit>
+    @DELETE("cocktails/favorites/{id}")
+    suspend fun removeFavorite(@Path("id") id: String): Response<Unit>
 
     // ── Brew ──────────────────────────────────────────────────────────────────
 
@@ -82,9 +65,7 @@ interface DrinkeiroApi {
     // ── History ───────────────────────────────────────────────────────────────
 
     @GET("machines/{machineId}/history")
-    suspend fun getHistory(
-        @Path("machineId") machineId: String,
-    ): Response<ApiList<HistoryEntry>>
+    suspend fun getHistory(@Path("machineId") machineId: String): Response<ApiList<HistoryEntry>>
 
     // ── Machines ──────────────────────────────────────────────────────────────
 
@@ -92,40 +73,30 @@ interface DrinkeiroApi {
     suspend fun getMachines(): Response<ApiList<Machine>>
 
     @POST("machines")
-    suspend fun createMachine(
-        @Body machine: Machine,
-    ): Response<Machine>
+    suspend fun createMachine(@Body machine: Machine): Response<Machine>
 
     @PUT("machines/{id}")
-    suspend fun updateMachine(
-        @Path("id") id: String,
-        @Body machine: Machine,
-    ): Response<Machine>
+    suspend fun updateMachine(@Path("id") id: String, @Body machine: Machine): Response<Machine>
 
     @DELETE("machines/{id}")
-    suspend fun deleteMachine(
-        @Path("id") id: String,
-    ): Response<Unit>
+    suspend fun deleteMachine(@Path("id") id: String): Response<Unit>
 
-    /** Add a collaborator by email */
-    @POST("machines/{id}/collaborators/{email}")
+    @PUT("machines/{id}/email/{email}")
     suspend fun addCollaborator(
-        @Path("id") machineId: String,
+        @Path("id")    machineId: String,
         @Path("email") email: String,
     ): Response<Machine>
 
-    @DELETE("machines/{id}/collaborators/{email}")
+    @DELETE("machines/{id}/email/{email}")
     suspend fun removeCollaborator(
-        @Path("id") machineId: String,
+        @Path("id")    machineId: String,
         @Path("email") email: String,
     ): Response<Machine>
 
     // ── Pumps ─────────────────────────────────────────────────────────────────
 
     @GET("machines/{machineId}/pumps")
-    suspend fun getPumps(
-        @Path("machineId") machineId: String,
-    ): Response<List<Pump>>
+    suspend fun getPumps(@Path("machineId") machineId: String): Response<List<Pump>>
 
     @POST("machines/{machineId}/pumps")
     suspend fun createPump(
@@ -135,21 +106,20 @@ interface DrinkeiroApi {
 
     @PUT("machines/{machineId}/pumps/{pumpNumber}")
     suspend fun updatePump(
-        @Path("machineId") machineId: String,
-        @Path("pumpNumber") pumpNumber: Int,
+        @Path("machineId")   machineId: String,
+        @Path("pumpNumber")  pumpNumber: Int,
         @Body pump: Pump,
     ): Response<Pump>
 
     @DELETE("machines/{machineId}/pumps/{pumpNumber}")
     suspend fun deletePump(
-        @Path("machineId") machineId: String,
+        @Path("machineId")  machineId: String,
         @Path("pumpNumber") pumpNumber: Int,
     ): Response<Unit>
 
-    /** Trigger pump for 10 seconds */
     @POST("machines/{machineId}/pumps/{pumpNumber}/trigger")
     suspend fun triggerPump(
-        @Path("machineId") machineId: String,
+        @Path("machineId")  machineId: String,
         @Path("pumpNumber") pumpNumber: Int,
         @Body request: PumpTriggerRequest = PumpTriggerRequest(),
     ): Response<Unit>

@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Cocktail(
+    @SerialName("id")                           val id: String,
     @SerialName("idDrink")                      val idDrink: String,
     @SerialName("strDrink")                     val strDrink: String,
     @SerialName("strDrinkAlternate")            val strDrinkAlternate: String?       = null,
@@ -52,9 +53,10 @@ data class Machine(
 
 @Serializable
 data class Pump(
-    @SerialName("pumpNumber")  val pumpNumber: Int,
-    @SerialName("ingredient")  val ingredient: String,
-    @SerialName("flowRate")    val flowRate: Double,          // ml/s
+    @SerialName("port")                  val port: Int,
+    @SerialName("name")                  val name: String,
+    @SerialName("ingredientId")          val ingredientId: String,
+    @SerialName("flowRateInMlPerSec")    val flowRateInMlPerSec: Double,
 )
 
 @Serializable

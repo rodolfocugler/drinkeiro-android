@@ -22,7 +22,7 @@ import javax.inject.Inject
 private const val TAG = "DrinkeiroAuth"
 
 sealed interface AuthState {
-    object Idle : AuthState
+    object Idle    : AuthState
     object Loading : AuthState
     object Success : AuthState
     data class Error(val message: String) : AuthState
@@ -30,7 +30,7 @@ sealed interface AuthState {
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val api: DrinkeiroApi,
+    private val api:     DrinkeiroApi,
     private val session: SessionRepository,
 ) : ViewModel() {
 
@@ -44,7 +44,7 @@ class AuthViewModel @Inject constructor(
                 val credentialManager = CredentialManager.create(context)
                 val googleIdOption =
                     GetSignInWithGoogleOption.Builder(BuildConfig.GOOGLE_WEB_CLIENT_ID)
-                        .build()
+                    .build()
 
                 val request = GetCredentialRequest.Builder()
                     .addCredentialOption(googleIdOption)
@@ -72,10 +72,10 @@ class AuthViewModel @Inject constructor(
                 session.saveSession(
                     token = body.accessToken,
                     refreshToken = body.refreshToken,
-                    userId = body.userId,
-                    name = body.name,
-                    email = body.email,
-                    photoUrl = body.photoUrl,
+                    userId       = body.userId,
+                    name         = body.name,
+                    email        = body.email,
+                    photoUrl     = body.photoUrl,
                 )
                 _state.value = AuthState.Success
             } else {

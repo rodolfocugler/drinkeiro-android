@@ -78,10 +78,6 @@ class SessionRepository @Inject constructor(
         _logoutEvent.value = false
     }
 
-    suspend fun updateToken(token: String) {
-        context.dataStore.edit { it[Keys.TOKEN] = token }
-    }
-
     suspend fun setActiveMachine(machineId: String) {
         _activeMachineId.value = machineId
         context.dataStore.edit { it[Keys.MACHINE_ID] = machineId }

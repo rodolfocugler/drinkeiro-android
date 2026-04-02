@@ -182,7 +182,7 @@ fun CocktailCard(
             )
             Spacer(Modifier.height(3.dp))
             Text(
-                text     = cocktail.strIngredient.joinToString(" · ") { it.strIngredient!! },
+                text     = cocktail.strIngredient.joinToString(" · ") { it.strIngredient },
                 style    = MaterialTheme.typography.bodySmall,
                 color    = c.cream3,
                 maxLines = 1,

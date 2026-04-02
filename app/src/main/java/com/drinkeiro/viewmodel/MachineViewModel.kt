@@ -84,7 +84,7 @@ class MachineViewModel @Inject constructor(
         if (name.isBlank()) return
         viewModelScope.launch {
             val newMachine = Machine(
-                id = "",          // backend assigns the real id
+                id = "",
                 name = name.trim(),
                 status = "offline",
                 collaborators = emptyList(),
@@ -100,6 +100,20 @@ class MachineViewModel @Inject constructor(
             }.onFailure { e ->
                 _ui.update { it.copy(error = e.message) }
             }
+        }
+    }
+
+    fun updateMachine(machine: Machine) {
+        viewModelScope.launch {
+            machineRepo.updateMachine(machine).onSuccess { updated ->
+                _ui.update { s ->
+                    s.copy(
+                        machines      = s.machines.map { if (it.id == updated.id) updated else it },
+                        activeMachine = if (s.activeMachine?.id == updated.id) updated else s.activeMachine,
+                        toastMessage  = "\"${updated.name}\" updated",
+                    )
+                }
+            }.onFailure { e -> _ui.update { it.copy(error = e.message) } }
         }
     }
 
@@ -206,8 +220,8 @@ class MachineViewModel @Inject constructor(
             machineRepo.createPump(machineId, pump).onSuccess { created ->
                 _ui.update { s ->
                     s.copy(
-                        pumps = (s.pumps + created).sortedBy { it.pumpNumber },
-                        toastMessage = "Pump ${created.pumpNumber} created",
+                        pumps = (s.pumps + created).sortedBy { it.port },
+                        toastMessage = "Pump ${created.port} created",
                     )
                 }
             }.onFailure { e -> _ui.update { it.copy(error = e.message) } }
@@ -219,7 +233,7 @@ class MachineViewModel @Inject constructor(
         viewModelScope.launch {
             machineRepo.updatePump(machineId, pump).onSuccess { updated ->
                 _ui.update { s ->
-                    s.copy(pumps = s.pumps.map { if (it.pumpNumber == updated.pumpNumber) updated else it })
+                    s.copy(pumps = s.pumps.map { if (it.port == updated.port) updated else it })
                 }
             }.onFailure { e -> _ui.update { it.copy(error = e.message) } }
         }
@@ -231,7 +245,7 @@ class MachineViewModel @Inject constructor(
             machineRepo.deletePump(machineId, pumpNumber).onSuccess {
                 _ui.update { s ->
                     s.copy(
-                        pumps = s.pumps.filter { it.pumpNumber != pumpNumber },
+                        pumps = s.pumps.filter { it.port != pumpNumber },
                         toastMessage = "Pump $pumpNumber removed",
                     )
                 }

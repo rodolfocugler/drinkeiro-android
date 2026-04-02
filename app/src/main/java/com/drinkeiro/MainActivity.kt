@@ -10,7 +10,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import com.drinkeiro.data.api.DrinkeiroApi
 import com.drinkeiro.data.repository.SessionRepository
 import com.drinkeiro.ui.navigation.DrinkeiroNavGraph
 import com.drinkeiro.ui.theme.DrinkeiroTheme
