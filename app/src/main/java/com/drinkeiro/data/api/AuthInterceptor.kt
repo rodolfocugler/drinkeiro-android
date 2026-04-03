@@ -26,7 +26,7 @@ class AuthInterceptor @Inject constructor(
         val token = runBlocking { session.getToken() }
         val response = chain.proceed(withAuth(chain.request(), token))
 
-        if (response.code == 401) { // TODO || response.code == 403) {
+        if (response.code == 401 || response.code == 403) {
             Log.w(TAG, "Got ${response.code} — attempting token refresh")
             response.close()
 

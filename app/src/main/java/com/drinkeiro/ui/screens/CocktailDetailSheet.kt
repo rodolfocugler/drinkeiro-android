@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.drinkeiro.data.model.Cocktail
+import com.drinkeiro.data.model.CocktailDto
 import com.drinkeiro.data.model.Ingredient
 import com.drinkeiro.ui.components.*
 import com.drinkeiro.ui.theme.DrinkeiroTheme
@@ -27,10 +27,10 @@ import com.drinkeiro.ui.theme.DrinkeiroTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CocktailDetailSheet(
-    cocktail:    Cocktail,
+    cocktail:    CocktailDto,
     isFav:       Boolean,
     onToggleFav: () -> Unit,
-    onBrew:      (Cocktail, List<Ingredient>) -> Unit,
+    onBrew:      (CocktailDto, List<Ingredient>) -> Unit,
     onEdit:      () -> Unit,
     onDelete:    () -> Unit,
     onDismiss:   () -> Unit,
@@ -136,7 +136,7 @@ fun CocktailDetailSheet(
             ) {
                 // Meta chips
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    MetaChip(cocktail.strCategory, c.accentLo, c.accent)
+                    MetaChip(cocktail.strCategory ?: "", c.accentLo, c.accent)
                     cocktail.strIBA?.let { MetaChip("IBA: $it", c.bg3, c.cream3) }
                     cocktail.strTags?.split(",")?.forEach { tag ->
                         MetaChip(tag.trim(), c.bg3, c.cream4)
@@ -272,7 +272,7 @@ fun CocktailDetailSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BrewConfirmSheet(
-    cocktail:  Cocktail,
+    cocktail:  CocktailDto,
     finalIngs: List<Ingredient>,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -322,7 +322,7 @@ private fun BrewConfirmSheet(
                     }
                     Column {
                         Text(cocktail.strDrink, style = MaterialTheme.typography.titleLarge, color = c.cream)
-                        Text(cocktail.strGlass, style = MaterialTheme.typography.bodySmall, color = c.cream3)
+                        Text(cocktail.strGlass?: "", style = MaterialTheme.typography.bodySmall, color = c.cream3)
                     }
                 }
             }

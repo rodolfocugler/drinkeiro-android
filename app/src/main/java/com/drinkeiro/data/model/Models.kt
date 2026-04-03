@@ -6,27 +6,35 @@ import kotlinx.serialization.Serializable
 // ── Cocktail ─────────────────────────────────────────────────────────────────
 
 @Serializable
-data class Cocktail(
+data class CocktailDto(
     @SerialName("id")                           val id: String,
-    @SerialName("idDrink")                      val idDrink: String,
     @SerialName("strDrink")                     val strDrink: String,
     @SerialName("strDrinkAlternate")            val strDrinkAlternate: String?       = null,
     @SerialName("strTags")                      val strTags: String?                 = null,
-    @SerialName("strVideo")                     val strVideo: String?                = null,
-    @SerialName("strCategory")                  val strCategory: String,
+    @SerialName("strCategory")                  val strCategory: String?             = null,
     @SerialName("strIBA")                       val strIBA: String?                  = null,
-    @SerialName("strAlcoholic")                 val strAlcoholic: String,
-    @SerialName("strGlass")                     val strGlass: String,
+    @SerialName("strAlcoholic")                 val strAlcoholic: String?            = null,
+    @SerialName("strGlass")                     val strGlass: String?                = null,
     @SerialName("strInstructions")              val strInstructions: String?         = null,
-    @SerialName("strInstructionsES")            val strInstructionsES: String?       = null,
-    @SerialName("strInstructionsDE")            val strInstructionsDE: String?       = null,
-    @SerialName("strInstructionsFR")            val strInstructionsFR: String?       = null,
-    @SerialName("strInstructionsIT")            val strInstructionsIT: String?       = null,
-    @SerialName("strInstructionsZH-HANS")       val strInstructionsZhHans: String?   = null,
-    @SerialName("strInstructionsZH-HANT")       val strInstructionsZhHant: String?   = null,
     @SerialName("strDrinkThumb")                val strDrinkThumb: String?           = null,
-    @SerialName("strImageSource")               val strImageSource: String?          = null,
-    @SerialName("strImageAttribution")          val strImageAttribution: String?     = null,
+    @SerialName("strCreativeCommonsConfirmed")  val strCreativeCommonsConfirmed: String? = null,
+    @SerialName("isFavorite")                   val isFavorite: Boolean,
+    @SerialName("dateModified")                 val dateModified: String?            = null,
+    @SerialName("strIngredient")                val strIngredient: List<Ingredient>  = emptyList(),
+)
+
+@Serializable
+data class CocktailEntity(
+    @SerialName("id")                           val id: String,
+    @SerialName("strDrink")                     val strDrink: String,
+    @SerialName("strDrinkAlternate")            val strDrinkAlternate: String?       = null,
+    @SerialName("strTags")                      val strTags: String?                 = null,
+    @SerialName("strCategory")                  val strCategory: String?             = null,
+    @SerialName("strIBA")                       val strIBA: String?                  = null,
+    @SerialName("strAlcoholic")                 val strAlcoholic: String?            = null,
+    @SerialName("strGlass")                     val strGlass: String?                = null,
+    @SerialName("strInstructions")              val strInstructions: String?         = null,
+    @SerialName("strDrinkThumb")                val strDrinkThumb: String?           = null,
     @SerialName("strCreativeCommonsConfirmed")  val strCreativeCommonsConfirmed: String? = null,
     @SerialName("dateModified")                 val dateModified: String?            = null,
     @SerialName("strIngredient")                val strIngredient: List<Ingredient>  = emptyList(),
@@ -37,6 +45,14 @@ data class Ingredient(
     @SerialName("strIngredient") val strIngredient: String,
     @SerialName("strMeasure")    val strMeasure: String?    = null,
     @SerialName("order")         val order: Int,
+)
+
+// ── Category ───────────────────────────────────────────────────────────────────
+
+@Serializable
+data class Category(
+    @SerialName("id")            val id: String,
+    @SerialName("strCategory")   val strCategory: String,
 )
 
 // ── Machine ───────────────────────────────────────────────────────────────────

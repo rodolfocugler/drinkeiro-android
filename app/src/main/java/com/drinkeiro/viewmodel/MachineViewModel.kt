@@ -13,20 +13,32 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+private const val HISTORY_PAGE_SIZE = 20
+
 data class MachineUiState(
     val machines: List<Machine> = emptyList(),
     val activeMachine: Machine? = null,
     val pumps: List<Pump> = emptyList(),
+
+    // History — paginated
     val history: List<HistoryEntry> = emptyList(),
+    val isHistoryLoading: Boolean = false,
+    val isHistoryLoadMore: Boolean = false,
+    val isHistoryRefresh: Boolean = false,
+    val historyPage: Int = 0,
+    val canHistoryMore: Boolean = true,
+
+    // General
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val isBrewing: Boolean = false,
     val toastMessage: String? = null,
     val error: String? = null,
     val testingPump: Int? = null,
     val testCountdown: Int = 10,
-    // Collaborator management
+
+    // Dialog flags
     val showCollaborators: Boolean = false,
-    // New machine dialog
     val showCreateMachine: Boolean = false,
 )
 
@@ -40,7 +52,6 @@ class MachineViewModel @Inject constructor(
     private val _ui = MutableStateFlow(MachineUiState())
     val ui = _ui.asStateFlow()
 
-    // Expose the active machine ID as a StateFlow for all screens
     val activeMachineId: StateFlow<String?> = session.activeMachineIdState
 
     private var testJob: Job? = null
@@ -52,54 +63,72 @@ class MachineViewModel @Inject constructor(
 
     // ── Machines ──────────────────────────────────────────────────────────────
 
-    fun loadMachines() {
+    fun loadMachines(refresh: Boolean = false) {
         viewModelScope.launch {
-            _ui.update { it.copy(isLoading = true) }
+            if (refresh) _ui.update { it.copy(isRefreshing = true) }
+            else _ui.update { it.copy(isLoading = true) }
+
             machineRepo.getMachines().onSuccess { list ->
                 val savedId = session.activeMachineIdState.value
                     ?: session.activeMachineId.firstOrNull()
                 val active = list.firstOrNull { it.id == savedId } ?: list.firstOrNull()
-                _ui.update { it.copy(machines = list, activeMachine = active, isLoading = false) }
+                _ui.update {
+                    it.copy(
+                        machines = list,
+                        activeMachine = active,
+                        isLoading = false,
+                        isRefreshing = false,
+                    )
+                }
                 if (active != null) {
                     session.setActiveMachineInMemory(active.id)
                     loadPumps(active.id)
-                    loadHistory(active.id)
+                    loadHistory(refresh = refresh)
                 }
             }.onFailure { e ->
-                _ui.update { it.copy(isLoading = false, error = e.message) }
+                _ui.update { it.copy(isLoading = false, isRefreshing = false, error = e.message) }
             }
         }
     }
 
+    fun refresh() = loadMachines(refresh = true)
+
     fun selectMachine(machine: Machine) {
-        _ui.update { it.copy(activeMachine = machine) }
+        _ui.update {
+            it.copy(
+                activeMachine = machine,
+                history = emptyList(),
+                historyPage = 0,
+                canHistoryMore = true
+            )
+        }
         viewModelScope.launch {
-            session.setActiveMachine(machine.id)   // persists + updates in-memory state
+            session.setActiveMachine(machine.id)
             loadPumps(machine.id)
-            loadHistory(machine.id)
+            loadHistory(refresh = false)
         }
     }
 
     fun createMachine(name: String) {
         if (name.isBlank()) return
         viewModelScope.launch {
-            val newMachine = Machine(
-                id = "",
-                name = name.trim(),
-                status = "offline",
-                collaborators = emptyList(),
+            machineRepo.createMachine(
+                Machine(
+                    id = "",
+                    name = name.trim(),
+                    status = "offline",
+                    collaborators = emptyList()
+                )
             )
-            machineRepo.createMachine(newMachine).onSuccess { created ->
-                _ui.update { s ->
-                    s.copy(
-                        machines = s.machines + created,
-                        showCreateMachine = false,
-                        toastMessage = "\"${created.name}\" created",
-                    )
-                }
-            }.onFailure { e ->
-                _ui.update { it.copy(error = e.message) }
-            }
+                .onSuccess { created ->
+                    _ui.update { s ->
+                        s.copy(
+                            machines = s.machines + created,
+                            showCreateMachine = false,
+                            toastMessage = "\"${created.name}\" created"
+                        )
+                    }
+                }.onFailure { e -> _ui.update { it.copy(error = e.message) } }
         }
     }
 
@@ -108,9 +137,9 @@ class MachineViewModel @Inject constructor(
             machineRepo.updateMachine(machine).onSuccess { updated ->
                 _ui.update { s ->
                     s.copy(
-                        machines      = s.machines.map { if (it.id == updated.id) updated else it },
+                        machines = s.machines.map { if (it.id == updated.id) updated else it },
                         activeMachine = if (s.activeMachine?.id == updated.id) updated else s.activeMachine,
-                        toastMessage  = "\"${updated.name}\" updated",
+                        toastMessage = "\"${updated.name}\" updated",
                     )
                 }
             }.onFailure { e -> _ui.update { it.copy(error = e.message) } }
@@ -125,7 +154,11 @@ class MachineViewModel @Inject constructor(
                     val newActive =
                         if (s.activeMachine?.id == machineId) remaining.firstOrNull() else s.activeMachine
                     if (newActive != null) session.setActiveMachine(newActive.id)
-                    s.copy(machines = remaining, activeMachine = newActive)
+                    s.copy(
+                        machines = remaining,
+                        activeMachine = newActive,
+                        toastMessage = "Machine deleted",
+                    )
                 }
             }.onFailure { e -> _ui.update { it.copy(error = e.message) } }
         }
@@ -168,19 +201,23 @@ class MachineViewModel @Inject constructor(
     fun logout() {
         viewModelScope.launch {
             session.logout()
-            api.logout()
+            try {
+                api.logout()
+            } catch (_: Exception) {
+            }
         }
     }
 
     // ── Brew ──────────────────────────────────────────────────────────────────
 
-    fun brew(cocktail: Cocktail, ingredients: List<Ingredient>) {
+    fun brew(cocktail: CocktailDto, ingredients: List<Ingredient>) {
         val machineId = _ui.value.activeMachine?.id ?: return
         viewModelScope.launch {
             _ui.update { it.copy(isBrewing = true) }
-            machineRepo.brew(machineId, BrewRequest(cocktail.idDrink, ingredients))
+            machineRepo.brew(machineId, BrewRequest(cocktail.id, ingredients))
                 .onSuccess {
-                    loadHistory(machineId)
+                    // Reload history from page 0 after a brew
+                    loadHistory(refresh = false)
                     _ui.update {
                         it.copy(
                             isBrewing = false,
@@ -196,13 +233,56 @@ class MachineViewModel @Inject constructor(
 
     // ── History ───────────────────────────────────────────────────────────────
 
-    fun loadHistory(machineId: String) {
+    fun loadHistory(refresh: Boolean = false) {
+        val machineId = _ui.value.activeMachine?.id ?: return
+        if (refresh) {
+            _ui.update { it.copy(isHistoryRefresh = true, historyPage = 0, canHistoryMore = true) }
+        } else {
+            if (_ui.value.isHistoryLoading) return
+            _ui.update { it.copy(isHistoryLoading = true) }
+        }
         viewModelScope.launch {
-            machineRepo.getHistory(machineId).onSuccess { entries ->
-                _ui.update { it.copy(history = entries) }
-            }
+            machineRepo.getHistory(machineId, page = 0, pageSize = HISTORY_PAGE_SIZE)
+                .onSuccess { entries ->
+                    _ui.update { s ->
+                        s.copy(
+                            history = entries,
+                            historyPage = 0,
+                            canHistoryMore = entries.size >= HISTORY_PAGE_SIZE,
+                            isHistoryLoading = false,
+                            isHistoryRefresh = false,
+                        )
+                    }
+                }
+                .onFailure {
+                    _ui.update { it.copy(isHistoryLoading = false, isHistoryRefresh = false) }
+                }
         }
     }
+
+    fun loadMoreHistory() {
+        val s = _ui.value
+        if (!s.canHistoryMore || s.isHistoryLoadMore || s.isHistoryLoading) return
+        val machineId = s.activeMachine?.id ?: return
+        val nextPage = s.historyPage + 1
+        viewModelScope.launch {
+            _ui.update { it.copy(isHistoryLoadMore = true) }
+            machineRepo.getHistory(machineId, page = nextPage, pageSize = HISTORY_PAGE_SIZE)
+                .onSuccess { newItems ->
+                    _ui.update { st ->
+                        st.copy(
+                            history = st.history + newItems,
+                            historyPage = nextPage,
+                            canHistoryMore = newItems.size >= HISTORY_PAGE_SIZE,
+                            isHistoryLoadMore = false,
+                        )
+                    }
+                }
+                .onFailure { _ui.update { it.copy(isHistoryLoadMore = false) } }
+        }
+    }
+
+    fun refreshHistory() = loadHistory(refresh = true)
 
     // ── Pumps ─────────────────────────────────────────────────────────────────
 

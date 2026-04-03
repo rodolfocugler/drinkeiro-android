@@ -4,8 +4,15 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,8 +27,7 @@ import com.drinkeiro.viewmodel.MachineViewModel
 import kotlin.math.ceil
 import kotlin.math.round
 
-// ── Machine Settings Tab ──────────────────────────────────────────────────────
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MachineSettingsTab(vm: MachineViewModel) {
     val c = DrinkeiroTheme.colors
@@ -31,115 +37,85 @@ fun MachineSettingsTab(vm: MachineViewModel) {
     var isNewPump by remember { mutableStateOf(false) }
     var confirmDeletePump by remember { mutableStateOf<Int?>(null) }
     var showRenameMachine by remember { mutableStateOf(false) }
+    var confirmDeleteMachine by remember { mutableStateOf(false) }
 
     val usedNumbers = ui.pumps.map { it.port }
+    val listState = rememberLazyListState()
 
-    LazyColumn(
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    PullToRefreshBox(
+        isRefreshing = ui.isRefreshing,
+        onRefresh = vm::refresh,
         modifier = Modifier.fillMaxSize(),
     ) {
-        // Machine status strip
-        item {
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = c.bg2,
-                border = BorderStroke(1.dp, c.border),
-            ) {
+        LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            // ── Machine card ─────────────────────────────────────────────────
+            item {
+                MachineCard(
+                    vm = vm,
+                    onRename = { showRenameMachine = true },
+                    onCollaborators = { vm.showCollaboratorsDialog() },
+                    onDelete = { confirmDeleteMachine = true },
+                    onCreateNew = { vm.showCreateMachineDialog() },
+                )
+            }
+
+            // ── Pumps header ─────────────────────────────────────────────────
+            item {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        StatusDot(ui.activeMachine?.status == "online")
-                        Column {
-                            Text(
-                                ui.activeMachine?.name ?: "No machine",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = c.cream
-                            )
-                            Text(
-                                if (ui.activeMachine?.status == "online") "Online" else "Offline",
-                                style = MaterialTheme.typography.bodySmall, color = c.cream3,
-                            )
-                        }
+                    Column {
+                        Text(
+                            "Pump Configuration",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = c.cream
+                        )
+                        Text(
+                            "${ui.pumps.size}/8 configured",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = c.cream3
+                        )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AmberChip(
-                            text = "✎",
-                            onClick = { showRenameMachine = true },
-                        )
-                        AmberChip(
-                            text = "👥",
-                            onClick = { vm.showCollaboratorsDialog() },
-                        )
-                        AmberChip(
-                            text = "+ Machine",
-                            onClick = { vm.showCreateMachineDialog() },
-                        )
+                    if (ui.pumps.size < 8) {
+                        AmberChip(text = "+ Add", onClick = {
+                            showPumpEditor = Pump(port = 0, name = "", ingredientId = "", flowRateInMlPerSec = 8.0)
+                            isNewPump = true
+                        })
                     }
                 }
             }
-        }
 
-        // Pumps header
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column {
-                    Text(
-                        "Pump Configuration",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = c.cream
-                    )
-                    Text(
-                        "${ui.pumps.size}/8 configured",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = c.cream3
-                    )
-                }
-                if (ui.pumps.size < 8) {
-                    AmberChip(text = "+ Add", onClick = {
-                        showPumpEditor =
-                            Pump(port = 0, name = "", ingredientId = "", flowRateInMlPerSec = 8.0)
-                        isNewPump = true
-                    })
-                }
+            // ── 4×2 visual grid ──────────────────────────────────────────────
+            item {
+                PumpGrid(
+                    pumps = ui.pumps,
+                    onPumpTap = { pump -> showPumpEditor = pump; isNewPump = false },
+                )
             }
-        }
 
-        // 4×2 visual grid
-        item {
-            PumpGrid(
-                pumps = ui.pumps,
-                onPumpTap = { pump -> showPumpEditor = pump; isNewPump = false },
-            )
-        }
-
-        // Pump list
-        items(ui.pumps.sortedBy { it.port }, key = { it.port }) { pump ->
-            PumpRow(
-                pump = pump,
-                isTesting = ui.testingPump == pump.port,
-                countdown = ui.testCountdown,
-                anyTesting = ui.testingPump != null,
-                onTest = { vm.triggerPump(pump.port) },
-                onEdit = { showPumpEditor = pump; isNewPump = false },
-                onDelete = { confirmDeletePump = pump.port },
-            )
+            // ── Pump list ────────────────────────────────────────────────────
+            items(ui.pumps.sortedBy { it.port }, key = { it.port }) { pump ->
+                PumpRow(
+                    pump = pump,
+                    isTesting = ui.testingPump == pump.port,
+                    countdown = ui.testCountdown,
+                    anyTesting = ui.testingPump != null,
+                    onTest = { vm.triggerPump(pump.port) },
+                    onEdit = { showPumpEditor = pump; isNewPump = false },
+                    onDelete = { confirmDeletePump = pump.port },
+                )
+            }
         }
     }
 
-    // ── Delete confirm ───────────────────────────────────────────────────────
+    // ── Delete pump confirm ───────────────────────────────────────────────────
     confirmDeletePump?.let { num ->
         AlertDialog(
             onDismissRequest = { confirmDeletePump = null },
@@ -153,18 +129,58 @@ fun MachineSettingsTab(vm: MachineViewModel) {
             },
             confirmButton = {
                 TextButton(onClick = { vm.deletePump(num); confirmDeletePump = null }) {
-                    Text("Delete", color = c.error)
+                    Text("Delete", color = c.error, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { confirmDeletePump = null }) {
-                    Text("Cancel", color = c.cream3)
+                    Text(
+                        "Cancel",
+                        color = c.cream3
+                    )
                 }
             },
         )
     }
 
-    // ── Pump editor sheet ────────────────────────────────────────────────────
+    // ── Delete machine confirm ────────────────────────────────────────────────
+    if (confirmDeleteMachine) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteMachine = false },
+            containerColor = c.bg2,
+            title = {
+                Text(
+                    "Delete \"${ui.activeMachine?.name}\"?",
+                    color = c.cream,
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+            },
+            text = {
+                Text(
+                    "This will remove the machine and all its configuration.",
+                    color = c.cream2
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    ui.activeMachine?.id?.let { vm.deleteMachine(it) }
+                    confirmDeleteMachine = false
+                }) {
+                    Text("Delete", color = c.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeleteMachine = false }) {
+                    Text(
+                        "Cancel",
+                        color = c.cream3
+                    )
+                }
+            },
+        )
+    }
+
+    // ── Pump editor ───────────────────────────────────────────────────────────
     showPumpEditor?.let { pump ->
         PumpEditorSheet(
             pump = pump,
@@ -178,7 +194,7 @@ fun MachineSettingsTab(vm: MachineViewModel) {
         )
     }
 
-    // ── Rename machine dialog ────────────────────────────────────────────────
+    // ── Rename machine ────────────────────────────────────────────────────────
     if (showRenameMachine && ui.activeMachine != null) {
         RenameMachineDialog(
             currentName = ui.activeMachine!!.name,
@@ -188,6 +204,188 @@ fun MachineSettingsTab(vm: MachineViewModel) {
             },
             onDismiss = { showRenameMachine = false },
         )
+    }
+}
+
+// ── Machine card — full-width card with action rows ───────────────────────────
+
+@Composable
+private fun MachineCard(
+    vm: MachineViewModel,
+    onRename: () -> Unit,
+    onCollaborators: () -> Unit,
+    onDelete: () -> Unit,
+    onCreateNew: () -> Unit,
+) {
+    val c = DrinkeiroTheme.colors
+    val ui by vm.ui.collectAsState()
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = c.bg2,
+        border = BorderStroke(1.dp, c.border),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // ── Header row: status + name ────────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                StatusDot(ui.activeMachine?.status == "online")
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        ui.activeMachine?.name ?: "No machine",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = c.cream,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        buildString {
+                            append(if (ui.activeMachine?.status == "online") "Online" else "Offline")
+                            val colabs = ui.activeMachine?.collaborators?.size ?: 0
+                            if (colabs > 0) append(" · $colabs collaborator${if (colabs != 1) "s" else ""}")
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = c.cream3,
+                    )
+                }
+            }
+
+            HorizontalDivider(color = c.border, thickness = 0.5.dp)
+
+            // ── Action grid: 2×2 ────────────────────────────────────────────
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MachineActionButton(
+                        label = "Rename",
+                        icon = { Icon(Icons.Outlined.Edit, null, modifier = Modifier.size(16.dp)) },
+                        onClick = onRename,
+                        modifier = Modifier.weight(1f),
+                    )
+                    MachineActionButton(
+                        label = "Collaborators",
+                        icon = {
+                            Icon(
+                                Icons.Outlined.Group,
+                                null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        onClick = onCollaborators,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MachineActionButton(
+                        label = "New Machine",
+                        icon = { Icon(Icons.Outlined.Add, null, modifier = Modifier.size(16.dp)) },
+                        onClick = onCreateNew,
+                        modifier = Modifier.weight(1f),
+                    )
+                    MachineActionButton(
+                        label = "Delete",
+                        icon = {
+                            Icon(
+                                Icons.Outlined.Delete,
+                                null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        onClick = onDelete,
+                        isDestructive = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+
+            // ── Other machines quick-switch ──────────────────────────────────
+            if (ui.machines.size > 1) {
+                HorizontalDivider(color = c.border, thickness = 0.5.dp)
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    Text(
+                        "Switch Machine",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = c.cream3,
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                    ui.machines.filter { it.id != ui.activeMachine?.id }.forEach { machine ->
+                        Surface(
+                            onClick = { vm.selectMachine(machine) },
+                            shape = RoundedCornerShape(10.dp),
+                            color = c.bg3,
+                            border = BorderStroke(1.dp, c.border),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                StatusDot(machine.status == "online")
+                                Text(
+                                    machine.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = c.cream2,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    "Switch →",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = c.accent
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MachineActionButton(
+    label: String,
+    icon: @Composable () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isDestructive: Boolean = false,
+) {
+    val c = DrinkeiroTheme.colors
+    val fgColor = if (isDestructive) c.error else c.cream2
+    val bgColor = if (isDestructive) c.error.copy(alpha = 0.1f) else c.bg3
+    val border = if (isDestructive) c.error.copy(alpha = 0.3f) else c.border
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = bgColor,
+        border = BorderStroke(1.dp, border),
+        modifier = modifier,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.material3.LocalContentColor provides fgColor
+            ) { icon() }
+            Spacer(Modifier.width(6.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.bodySmall,
+                color = fgColor,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
     }
 }
 
@@ -211,7 +409,7 @@ private fun PumpGrid(pumps: List<Pump>, onPumpTap: (Pump) -> Unit) {
                             .border(
                                 1.5.dp,
                                 if (pump != null) c.accentMd else c.border,
-                                RoundedCornerShape(14.dp),
+                                RoundedCornerShape(14.dp)
                             )
                             .then(if (pump != null) Modifier.clickable { onPumpTap(pump) } else Modifier),
                         contentAlignment = Alignment.Center,
@@ -231,7 +429,7 @@ private fun PumpGrid(pumps: List<Pump>, onPumpTap: (Pump) -> Unit) {
                                     pump.name.split(" ").take(2).joinToString(" "),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = c.cream3,
-                                    fontSize = 8.sp,
+                                    fontSize = 8.sp
                                 )
                                 Text(
                                     "${pump.flowRateInMlPerSec}ml/s",
@@ -254,23 +452,18 @@ private fun PumpGrid(pumps: List<Pump>, onPumpTap: (Pump) -> Unit) {
     }
 }
 
-// ── Individual pump row ───────────────────────────────────────────────────────
+// ── Pump row ──────────────────────────────────────────────────────────────────
 
 @Composable
 private fun PumpRow(
-    pump: Pump,
-    isTesting: Boolean,
-    countdown: Int,
-    anyTesting: Boolean,
-    onTest: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
+    pump: Pump, isTesting: Boolean, countdown: Int,
+    anyTesting: Boolean, onTest: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit,
 ) {
     val c = DrinkeiroTheme.colors
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = c.bg2,
-        border = BorderStroke(1.dp, c.border),
+        border = BorderStroke(1.dp, c.border)
     ) {
         Column(
             modifier = Modifier
@@ -280,14 +473,13 @@ private fun PumpRow(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Pump badge
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = c.accentLo,
                     border = BorderStroke(1.5.dp, c.accentMd),
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
@@ -313,7 +505,6 @@ private fun PumpRow(
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    // Test button
                     Surface(
                         onClick = { if (!anyTesting) onTest() },
                         shape = RoundedCornerShape(10.dp),
@@ -322,24 +513,23 @@ private fun PumpRow(
                             1.5.dp,
                             if (isTesting) c.green.copy(alpha = 0.4f) else c.border
                         ),
-                        modifier = Modifier.size(34.dp),
+                        modifier = Modifier.size(34.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 if (isTesting) "$countdown" else "▶",
                                 color = if (isTesting) c.green else c.cream3,
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
-                    // Edit
                     Surface(
                         onClick = onEdit,
                         shape = RoundedCornerShape(10.dp),
                         color = c.bg3,
                         border = BorderStroke(1.5.dp, c.border),
-                        modifier = Modifier.size(34.dp),
+                        modifier = Modifier.size(34.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
@@ -349,13 +539,12 @@ private fun PumpRow(
                             )
                         }
                     }
-                    // Delete
                     Surface(
                         onClick = onDelete,
                         shape = RoundedCornerShape(10.dp),
                         color = c.error.copy(alpha = 0.1f),
                         border = BorderStroke(1.5.dp, c.error.copy(alpha = 0.3f)),
-                        modifier = Modifier.size(34.dp),
+                        modifier = Modifier.size(34.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
@@ -367,12 +556,10 @@ private fun PumpRow(
                     }
                 }
             }
-            // Testing progress bar
             if (isTesting) {
                 Spacer(Modifier.height(10.dp))
-                val progress = countdown / 10f
                 LinearProgressIndicator(
-                    progress = { 1f - progress },
+                    progress = { 1f - countdown / 10f },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(4.dp)
@@ -399,31 +586,29 @@ fun MachineSwitcherSheet(vm: MachineViewModel, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = c.bg2,
-        dragHandle = { SheetHandle(modifier = Modifier.padding(top = 12.dp)) },
-    ) {
+        dragHandle = { SheetHandle(modifier = Modifier.padding(top = 12.dp)) }) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("My Machines", style = MaterialTheme.typography.headlineSmall, color = c.cream)
-
             ui.machines.forEach { machine ->
                 val isActive = machine.id == ui.activeMachine?.id
                 Surface(
                     onClick = { vm.selectMachine(machine); onDismiss() },
                     shape = RoundedCornerShape(16.dp),
                     color = if (isActive) c.accentLo else c.bg3,
-                    border = BorderStroke(1.5.dp, if (isActive) c.accentMd else c.border),
+                    border = BorderStroke(1.5.dp, if (isActive) c.accentMd else c.border)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         StatusDot(machine.status == "online")
                         Column(modifier = Modifier.weight(1f)) {
@@ -435,26 +620,25 @@ fun MachineSwitcherSheet(vm: MachineViewModel, onDismiss: () -> Unit) {
                             )
                             Text(
                                 "${if (machine.status == "online") "Online" else "Offline"} · ${machine.collaborators.size + 1} users",
-                                style = MaterialTheme.typography.bodySmall, color = c.cream3,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = c.cream3
                             )
                         }
                         if (isActive) Text("✓", color = c.accent, fontSize = 18.sp)
                     }
                 }
             }
-
-            // Add new machine
             Surface(
                 onClick = { vm.showCreateMachineDialog(); onDismiss() },
                 shape = RoundedCornerShape(16.dp),
                 color = c.bg3,
-                border = BorderStroke(1.5.dp, c.border),
+                border = BorderStroke(1.5.dp, c.border)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(14.dp),
-                    contentAlignment = Alignment.Center,
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         "+ New Machine",
@@ -477,14 +661,15 @@ fun PumpEditorSheet(
     isNew: Boolean,
     usedNumbers: List<Int>,
     onSave: (Pump) -> Unit,
-    onDismiss: () -> Unit,
+    onDismiss: () -> Unit
 ) {
     val c = DrinkeiroTheme.colors
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
     val available = (1..8).filter { it !in usedNumbers || it == pump.port }
     var pumpNumber by remember {
-        mutableStateOf(if (isNew) available.firstOrNull() ?: 1 else pump.port)
+        mutableStateOf(
+            if (isNew) available.firstOrNull() ?: 1 else pump.port
+        )
     }
     var ingredient by remember { mutableStateOf(pump.ingredientId) }
     var flowRate by remember { mutableStateOf(pump.flowRateInMlPerSec.toFloat()) }
@@ -494,46 +679,39 @@ fun PumpEditorSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = c.bg2,
-        dragHandle = { SheetHandle(modifier = Modifier.padding(top = 12.dp)) },
-    ) {
+        dragHandle = { SheetHandle(modifier = Modifier.padding(top = 12.dp)) }) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
                 if (isNew) "New Pump" else "Edit Pump",
                 style = MaterialTheme.typography.headlineSmall,
                 color = c.cream
             )
-
-            // Pump number picker
             Column {
-                SectionLabel("Pump Number")
-                Spacer(Modifier.height(8.dp))
+                SectionLabel("Pump Number"); Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     (1..8).forEach { n ->
-                        val ok = n in available
-                        val selected = n == pumpNumber
+                        val ok = n in available;
+                        val sel = n == pumpNumber
                         Surface(
                             onClick = { if (ok) pumpNumber = n },
                             shape = RoundedCornerShape(12.dp),
                             color = when {
-                                selected -> c.accentLo; ok -> c.bg3; else -> c.bg2
+                                sel -> c.accentLo; ok -> c.bg3; else -> c.bg2
                             },
-                            border = BorderStroke(1.5.dp, if (selected) c.accentMd else c.border),
-                            modifier = Modifier.size(44.dp),
+                            border = BorderStroke(1.5.dp, if (sel) c.accentMd else c.border),
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
-                                    "$n",
-                                    color = when {
-                                        selected -> c.accent; ok -> c.cream2; else -> c.cream4
-                                    },
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp,
+                                    "$n", color = when {
+                                        sel -> c.accent; ok -> c.cream2; else -> c.cream4
+                                    }, fontWeight = FontWeight.Bold, fontSize = 15.sp
                                 )
                             }
                         }
@@ -554,14 +732,12 @@ fun PumpEditorSheet(
                 value = ingredient,
                 onValueChange = { ingredient = it },
                 label = "Ingredient (English name)",
-                placeholder = "e.g. Vodka, Lime juice…",
+                placeholder = "e.g. Vodka, Lime juice…"
             )
-
-            // Flow rate slider
             Column {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     SectionLabel("Flow Rate")
                     Text(
@@ -578,8 +754,8 @@ fun PumpEditorSheet(
                     steps = 28,
                     colors = SliderDefaults.colors(
                         thumbColor = c.accent,
-                        activeTrackColor = c.accent,
-                    ),
+                        activeTrackColor = c.accent
+                    )
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -589,8 +765,6 @@ fun PumpEditorSheet(
                     Text("30 ml/s", style = MaterialTheme.typography.labelSmall, color = c.cream4)
                 }
             }
-
-            // Action buttons
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 GhostButton(text = "Cancel", onClick = onDismiss, modifier = Modifier.weight(1f))
                 DrinkeiroButton(
@@ -606,7 +780,7 @@ fun PumpEditorSheet(
                             )
                         )
                     },
-                    modifier = Modifier.weight(2f),
+                    modifier = Modifier.weight(2f)
                 )
             }
         }
@@ -619,23 +793,23 @@ fun PumpEditorSheet(
 private fun RenameMachineDialog(
     currentName: String,
     onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
+    onDismiss: () -> Unit
 ) {
     val c = DrinkeiroTheme.colors
     var name by remember { mutableStateOf(currentName) }
-
     AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = c.bg2,
+        onDismissRequest = onDismiss, containerColor = c.bg2,
         title = {
-            Text("Rename Machine", color = c.cream, style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "Rename Machine",
+                color = c.cream,
+                style = MaterialTheme.typography.headlineSmall
+            )
         },
         text = {
             OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
+                value = name, onValueChange = { name = it }, singleLine = true,
+                shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = c.accent,
                     unfocusedBorderColor = c.border,
@@ -643,23 +817,16 @@ private fun RenameMachineDialog(
                     unfocusedTextColor = c.cream,
                     cursorColor = c.accent,
                     focusedContainerColor = c.bg3,
-                    unfocusedContainerColor = c.bg3,
+                    unfocusedContainerColor = c.bg3
                 ),
-                modifier = Modifier.fillMaxWidth(),
             )
         },
         confirmButton = {
             TextButton(
                 onClick = { if (name.isNotBlank()) onConfirm(name.trim()) },
-                enabled = name.isNotBlank() && name.trim() != currentName,
-            ) {
-                Text("Save", color = c.accent, fontWeight = FontWeight.Bold)
-            }
+                enabled = name.isNotBlank() && name.trim() != currentName
+            ) { Text("Save", color = c.accent, fontWeight = FontWeight.Bold) }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = c.cream3)
-            }
-        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = c.cream3) } },
     )
 }

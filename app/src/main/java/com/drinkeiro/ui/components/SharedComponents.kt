@@ -1,6 +1,5 @@
 package com.drinkeiro.ui.components
 
-import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -14,16 +13,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.drinkeiro.data.model.Cocktail
+import com.drinkeiro.data.model.CocktailDto
 import com.drinkeiro.ui.theme.DrinkeiroTheme
 
 // ── Section label ─────────────────────────────────────────────────────────────
@@ -137,7 +134,7 @@ fun StatusDot(online: Boolean, modifier: Modifier = Modifier) {
 
 @Composable
 fun CocktailCard(
-    cocktail: Cocktail,
+    cocktail: CocktailDto,
     isFav:    Boolean,
     onClick:  () -> Unit,
     modifier: Modifier = Modifier,
@@ -190,8 +187,8 @@ fun CocktailCard(
             )
             Spacer(Modifier.height(5.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                CategoryChip(cocktail.strCategory.replace("/Unknown", ""))
-                if (cocktail.strGlass.isNotBlank()) GlassChip(cocktail.strGlass)
+                CategoryChip(cocktail.strCategory?.replace("/Unknown", "") ?: "")
+                if (!cocktail.strGlass.isNullOrBlank()) GlassChip(cocktail.strGlass)
             }
         }
 

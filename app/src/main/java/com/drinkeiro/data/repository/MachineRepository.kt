@@ -84,18 +84,27 @@ class MachineRepository @Inject constructor(
         }
     }
 
-    suspend fun getHistory(machineId: String): Result<List<HistoryEntry>> {
+    suspend fun getHistory(
+        machineId: String,
+        page:      Int = 0,
+        pageSize:  Int = 20,
+    ): Result<List<HistoryEntry>> {
         return try {
-            val r = api.getHistory(machineId)
+            val r = api.getHistory(machineId, page = page, pageSize = pageSize)
             if (r.isSuccessful) {
                 val list = r.body()!!.content
-                localHistory.clear(); localHistory.addAll(list)
-                Result.success(localHistory.toList())
+                if (page == 0) { localHistory.clear(); localHistory.addAll(list) }
+                else localHistory.addAll(list)
+                Result.success(list)
             } else {
-                Result.success(localHistory.toList())
+                val from = page * pageSize
+                Result.success(if (from >= localHistory.size) emptyList()
+                               else localHistory.subList(from, minOf(from + pageSize, localHistory.size)))
             }
         } catch (e: Exception) {
-            Result.success(localHistory.toList())
+            val from = page * pageSize
+            Result.success(if (from >= localHistory.size) emptyList()
+                           else localHistory.subList(from, minOf(from + pageSize, localHistory.size)))
         }
     }
 
