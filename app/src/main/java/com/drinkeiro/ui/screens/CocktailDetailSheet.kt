@@ -53,7 +53,7 @@ fun CocktailDetailSheet(
         containerColor   = c.bg2,
         dragHandle       = { SheetHandle(modifier = Modifier.padding(top = 12.dp)) },
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
             // ── Hero image ──────────────────────────────────────────────────
             Box(
                 modifier = Modifier
@@ -129,9 +129,7 @@ fun CocktailDetailSheet(
 
             // ── Scrollable body ─────────────────────────────────────────────
             Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 // Meta chips

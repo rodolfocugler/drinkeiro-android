@@ -27,12 +27,15 @@ import com.drinkeiro.ui.components.*
 import com.drinkeiro.ui.theme.DrinkeiroTheme
 import com.drinkeiro.viewmodel.CocktailViewModel
 import com.drinkeiro.viewmodel.MachineViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // ── Search bar ────────────────────────────────────────────────────────────────
 
 @Composable
 private fun SearchBar(
-    query:    String,
+    query: String,
     onChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -51,7 +54,7 @@ private fun SearchBar(
         Icon(
             Icons.Default.Search,
             contentDescription = null,
-            tint     = c.cream3,
+            tint = c.cream3,
             modifier = Modifier.size(18.dp),
         )
         Box(modifier = Modifier.weight(1f)) {
@@ -63,12 +66,12 @@ private fun SearchBar(
                 )
             }
             BasicTextField(
-                value         = query,
+                value = query,
                 onValueChange = onChange,
-                singleLine    = true,
-                textStyle     = MaterialTheme.typography.bodyMedium.copy(color = c.cream),
-                cursorBrush   = SolidColor(c.accent),
-                modifier      = Modifier.fillMaxWidth(),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = c.cream),
+                cursorBrush = SolidColor(c.accent),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
         if (query.isNotEmpty()) {
@@ -83,14 +86,14 @@ private fun SearchBar(
 
 @Composable
 private fun InfiniteScrollHandler(
-    listState:    androidx.compose.foundation.lazy.LazyListState,
-    buffer:       Int = 3,
-    onLoadMore:   () -> Unit,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    buffer: Int = 3,
+    onLoadMore: () -> Unit,
 ) {
     val shouldLoadMore = remember {
         derivedStateOf {
             val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            val total       = listState.layoutInfo.totalItemsCount
+            val total = listState.layoutInfo.totalItemsCount
             total > 0 && lastVisible >= total - buffer
         }
     }
@@ -110,7 +113,11 @@ private fun LoadingFooter() {
             .padding(16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = c.accent, strokeWidth = 2.dp)
+        CircularProgressIndicator(
+            modifier = Modifier.size(24.dp),
+            color = c.accent,
+            strokeWidth = 2.dp
+        )
     }
 }
 
@@ -120,29 +127,29 @@ private fun LoadingFooter() {
 @Composable
 fun FavoritesTab(
     cocktailVm: CocktailViewModel,
-    machineVm:  MachineViewModel,
+    machineVm: MachineViewModel,
 ) {
-    val ui        by cocktailVm.ui.collectAsState()
-    val c         = DrinkeiroTheme.colors
+    val ui by cocktailVm.ui.collectAsState()
+    val c = DrinkeiroTheme.colors
     val listState = rememberLazyListState()
-    var detail    by remember { mutableStateOf<CocktailDto?>(null) }
+    var detail by remember { mutableStateOf<CocktailDto?>(null) }
 
     InfiniteScrollHandler(listState = listState, onLoadMore = cocktailVm::loadMoreFavorites)
 
     PullToRefreshBox(
         isRefreshing = ui.isFavRefreshing,
-        onRefresh    = cocktailVm::refreshFavorites,
-        modifier     = Modifier.fillMaxSize(),
+        onRefresh = cocktailVm::refreshFavorites,
+        modifier = Modifier.fillMaxSize(),
     ) {
         LazyColumn(
-            state          = listState,
+            state = listState,
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
-            modifier       = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
         ) {
             // Search bar (local filter only)
             item {
                 SearchBar(
-                    query    = ui.favSearchQuery,
+                    query = ui.favSearchQuery,
                     onChange = cocktailVm::setFavSearch,
                     modifier = Modifier.padding(vertical = 12.dp),
                 )
@@ -150,14 +157,19 @@ fun FavoritesTab(
 
             item {
                 SectionLabel(
-                    text     = "${ui.favFiltered.size} saved",
+                    text = "${ui.favFiltered.size} saved",
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
             }
 
             if (ui.isFavLoading) {
                 item {
-                    Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         CircularProgressIndicator(color = c.accent)
                     }
                 }
@@ -172,8 +184,8 @@ fun FavoritesTab(
                 items(ui.favFiltered, key = { it.id }) { cocktail ->
                     CocktailCard(
                         cocktail = cocktail,
-                        isFav    = true,
-                        onClick  = { detail = cocktail },
+                        isFav = true,
+                        onClick = { detail = cocktail },
                     )
                 }
             }
@@ -184,13 +196,13 @@ fun FavoritesTab(
 
     detail?.let { ckt ->
         CocktailDetailSheet(
-            cocktail    = ckt,
-            isFav       = ui.cocktails.firstOrNull { it.id == ckt.id }?.isFavorite ?: false,
+            cocktail = ckt,
+            isFav = ui.cocktails.firstOrNull { it.id == ckt.id }?.isFavorite ?: false,
             onToggleFav = { cocktailVm.toggleFavorite(ckt) },
-            onBrew      = { fc, ings -> machineVm.brew(fc, ings); detail = null },
-            onEdit      = { cocktailVm.requestEdit(ckt); detail = null },
-            onDelete    = { cocktailVm.requestDelete(ckt); detail = null },
-            onDismiss   = { detail = null },
+            onBrew = { fc, ings -> machineVm.brew(fc, ings); detail = null },
+            onEdit = { cocktailVm.requestEdit(ckt); detail = null },
+            onDelete = { cocktailVm.requestDelete(ckt); detail = null },
+            onDismiss = { detail = null },
         )
     }
 
@@ -203,29 +215,29 @@ fun FavoritesTab(
 @Composable
 fun CocktailsTab(
     cocktailVm: CocktailViewModel,
-    machineVm:  MachineViewModel,
+    machineVm: MachineViewModel,
 ) {
-    val ui        by cocktailVm.ui.collectAsState()
-    val c         = DrinkeiroTheme.colors
+    val ui by cocktailVm.ui.collectAsState()
+    val c = DrinkeiroTheme.colors
     val listState = rememberLazyListState()
-    var detail    by remember { mutableStateOf<CocktailDto?>(null) }
+    var detail by remember { mutableStateOf<CocktailDto?>(null) }
 
     InfiniteScrollHandler(listState = listState, onLoadMore = cocktailVm::loadMore)
 
     PullToRefreshBox(
         isRefreshing = ui.isRefreshing,
-        onRefresh    = cocktailVm::refresh,
-        modifier     = Modifier.fillMaxSize(),
+        onRefresh = cocktailVm::refresh,
+        modifier = Modifier.fillMaxSize(),
     ) {
         LazyColumn(
-            state          = listState,
+            state = listState,
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
-            modifier       = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
         ) {
             // Search bar
             item {
                 SearchBar(
-                    query    = ui.searchQuery,
+                    query = ui.searchQuery,
                     onChange = cocktailVm::setSearch,
                     modifier = Modifier.padding(vertical = 12.dp),
                 )
@@ -235,22 +247,22 @@ fun CocktailsTab(
             item {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier              = Modifier.padding(bottom = 8.dp),
+                    modifier = Modifier.padding(bottom = 8.dp),
                 ) {
                     items(ui.categories) { cat ->
                         val selected = cat == ui.selectedCategory
                         Surface(
                             onClick = { cocktailVm.setCategory(cat) },
-                            shape   = RoundedCornerShape(20.dp),
-                            color   = if (selected) c.accentLo else c.bg2,
-                            border  = BorderStroke(1.5.dp, if (selected) c.accentMd else c.border),
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (selected) c.accentLo else c.bg2,
+                            border = BorderStroke(1.5.dp, if (selected) c.accentMd else c.border),
                         ) {
                             Text(
-                                text       = cat,
-                                color      = if (selected) c.accent else c.cream2,
-                                style      = MaterialTheme.typography.bodySmall,
+                                text = cat,
+                                color = if (selected) c.accent else c.cream2,
+                                style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier   = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
                             )
                         }
                     }
@@ -260,7 +272,12 @@ fun CocktailsTab(
             // Loading state
             if (ui.isLoading) {
                 item {
-                    Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         CircularProgressIndicator(color = c.accent)
                     }
                 }
@@ -275,8 +292,8 @@ fun CocktailsTab(
                 items(ui.cocktails, key = { it.id }) { cocktail ->
                     CocktailCard(
                         cocktail = cocktail,
-                        isFav    = cocktail.isFavorite,
-                        onClick  = { detail = cocktail },
+                        isFav = cocktail.isFavorite,
+                        onClick = { detail = cocktail },
                     )
                 }
             }
@@ -287,13 +304,13 @@ fun CocktailsTab(
 
     detail?.let { ckt ->
         CocktailDetailSheet(
-            cocktail    = ckt,
-            isFav       = ui.cocktails.firstOrNull { it.id == ckt.id }?.isFavorite ?: false,
+            cocktail = ckt,
+            isFav = ui.cocktails.firstOrNull { it.id == ckt.id }?.isFavorite ?: false,
             onToggleFav = { cocktailVm.toggleFavorite(ckt) },
-            onBrew      = { fc, ings -> machineVm.brew(fc, ings); detail = null },
-            onEdit      = { cocktailVm.requestEdit(ckt); detail = null },
-            onDelete    = { cocktailVm.requestDelete(ckt); detail = null },
-            onDismiss   = { detail = null },
+            onBrew = { fc, ings -> machineVm.brew(fc, ings); detail = null },
+            onEdit = { cocktailVm.requestEdit(ckt); detail = null },
+            onDelete = { cocktailVm.requestDelete(ckt); detail = null },
+            onDismiss = { detail = null },
         )
     }
 
@@ -305,21 +322,21 @@ fun CocktailsTab(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryTab(
-    machineVm:  MachineViewModel,
+    machineVm: MachineViewModel,
     cocktailVm: CocktailViewModel,
 ) {
-    val machineUi  by machineVm.ui.collectAsState()
+    val machineUi by machineVm.ui.collectAsState()
     val cocktailUi by cocktailVm.ui.collectAsState()
-    val c          = DrinkeiroTheme.colors
-    var detail     by remember { mutableStateOf<CocktailDto?>(null) }
-    val listState  = rememberLazyListState()
+    val c = DrinkeiroTheme.colors
+    var detail by remember { mutableStateOf<CocktailDto?>(null) }
+    val listState = rememberLazyListState()
 
     InfiniteScrollHandler(listState = listState, onLoadMore = machineVm::loadMoreHistory)
 
     PullToRefreshBox(
         isRefreshing = machineUi.isHistoryRefresh,
-        onRefresh    = machineVm::refreshHistory,
-        modifier     = Modifier.fillMaxSize(),
+        onRefresh = machineVm::refreshHistory,
+        modifier = Modifier.fillMaxSize(),
     ) {
         if (machineUi.isHistoryLoading && machineUi.history.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -331,9 +348,9 @@ fun HistoryTab(
             }
         } else {
             LazyColumn(
-                state          = listState,
+                state = listState,
                 contentPadding = PaddingValues(horizontal = 20.dp),
-                modifier       = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
             ) {
                 item {
                     SectionLabel("Recent Brews", modifier = Modifier.padding(vertical = 12.dp))
@@ -343,37 +360,29 @@ fun HistoryTab(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 12.dp),
-                        verticalAlignment     = Alignment.CenterVertically,
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Surface(
                             modifier = Modifier.size(44.dp),
-                            shape    = RoundedCornerShape(12.dp),
-                            color    = c.accentLo,
-                            border   = BorderStroke(1.dp, c.accentMd),
+                            shape = RoundedCornerShape(12.dp),
+                            color = c.accentLo,
+                            border = BorderStroke(1.dp, c.accentMd),
                         ) {
                             Box(contentAlignment = Alignment.Center) { Text("🍸", fontSize = 22.sp) }
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(entry.strDrink, style = MaterialTheme.typography.titleLarge, color = c.cream)
-                            Spacer(Modifier.height(2.dp))
-                            Text("${entry.ts} · ${entry.user}", style = MaterialTheme.typography.bodySmall, color = c.cream3)
-                        }
-                        Surface(
-                            onClick = {
-                                cocktailUi.cocktails.firstOrNull { it.id == entry.idDrink }
-                                    ?.let { detail = it }
-                            },
-                            shape  = RoundedCornerShape(10.dp),
-                            color  = c.accentLo,
-                            border = BorderStroke(1.dp, c.accentMd),
-                        ) {
                             Text(
-                                text       = "Again",
-                                color      = c.accent,
-                                style      = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier   = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                SimpleDateFormat("dd/MM/yy HH:mm:ss", Locale.getDefault()).format(
+                                    Date(entry.timestamp)
+                                ),
+                                style = MaterialTheme.typography.titleLarge, color = c.cream
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                entry.historyEntries.joinToString(", ") { it.name },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = c.cream3
                             )
                         }
                     }
@@ -381,8 +390,17 @@ fun HistoryTab(
                 }
                 if (machineUi.isHistoryLoadMore) {
                     item {
-                        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = c.accent, strokeWidth = 2.dp)
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = c.accent,
+                                strokeWidth = 2.dp
+                            )
                         }
                     }
                 }
@@ -392,13 +410,13 @@ fun HistoryTab(
 
     detail?.let { cocktail ->
         CocktailDetailSheet(
-            cocktail    = cocktail,
-            isFav       = cocktailUi.cocktails.firstOrNull { it.id == cocktail.id }?.isFavorite ?: false,
+            cocktail = cocktail,
+            isFav = cocktailUi.cocktails.firstOrNull { it.id == cocktail.id }?.isFavorite ?: false,
             onToggleFav = { cocktailVm.toggleFavorite(cocktail) },
-            onBrew      = { fc, ings -> machineVm.brew(fc, ings); detail = null },
-            onEdit      = { cocktailVm.requestEdit(cocktail); detail = null },
-            onDelete    = { cocktailVm.requestDelete(cocktail); detail = null },
-            onDismiss   = { detail = null },
+            onBrew = { fc, ings -> machineVm.brew(fc, ings); detail = null },
+            onEdit = { cocktailVm.requestEdit(cocktail); detail = null },
+            onDelete = { cocktailVm.requestDelete(cocktail); detail = null },
+            onDismiss = { detail = null },
         )
     }
 
@@ -417,9 +435,9 @@ fun EmptyState(text: String) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text      = text,
-            style     = MaterialTheme.typography.bodyLarge,
-            color     = c.cream3,
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = c.cream3,
             fontStyle = FontStyle.Italic,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
@@ -434,20 +452,20 @@ fun ObserveRecipeDialogs(vm: CocktailViewModel) {
 
     ui.recipeEditorCocktail?.let { cocktail ->
         RecipeEditorSheet(
-            cocktail   = cocktail,
+            cocktail = cocktail,
             categories = ui.categories,
-            isNew      = ui.isCreatingRecipe,
-            onSave     = { saved ->
+            isNew = ui.isCreatingRecipe,
+            onSave = { saved ->
                 if (ui.isCreatingRecipe) vm.createCocktail(saved) else vm.updateCocktail(saved)
             },
-            onDismiss  = { vm.dismissRecipeEditor() },
+            onDismiss = { vm.dismissRecipeEditor() },
         )
     }
 
     ui.deleteConfirmCocktail?.let { cocktail ->
         AlertDialog(
             onDismissRequest = { vm.dismissDeleteConfirm() },
-            containerColor   = DrinkeiroTheme.colors.bg2,
+            containerColor = DrinkeiroTheme.colors.bg2,
             title = {
                 Text(
                     "Delete \"${cocktail.strDrink}\"?",
@@ -460,7 +478,11 @@ fun ObserveRecipeDialogs(vm: CocktailViewModel) {
             },
             confirmButton = {
                 TextButton(onClick = { vm.deleteCocktail(cocktail.id) }) {
-                    Text("Delete", color = DrinkeiroTheme.colors.error, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Delete",
+                        color = DrinkeiroTheme.colors.error,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             },
             dismissButton = {

@@ -14,7 +14,7 @@ class MachineRepository @Inject constructor(
 ) {
     private val localMachines = mutableListOf<Machine>()
     private val localPumps = mutableListOf<Pump>()
-    private val localHistory = mutableListOf<HistoryEntry>()
+    private val localHistory = mutableListOf<HistoryEntity>()
 
     suspend fun getMachines(): Result<List<Machine>> {
         return try {
@@ -65,22 +65,29 @@ class MachineRepository @Inject constructor(
         } catch (e: Exception) { Result.success(Unit) }
     }
 
-    suspend fun brew(machineId: String, request: BrewRequest): Result<BrewResponse> {
+    suspend fun brew(machineId: String, request: BrewRequest): Result<Unit> {
         // Log locally regardless of backend
-        val entry = HistoryEntry(
+        val entry = HistoryEntity(
             id = "local_${System.currentTimeMillis()}",
-            idDrink = request.idDrink,
-            strDrink = request.strIngredient.firstOrNull()?.strIngredient ?: request.idDrink,
-            ts = "Just now",
-            user = "You",
+            machineId = machineId,
+            timestamp = System.currentTimeMillis(),
+            historyEntries = request.strIngredient.map {
+                HistoryEntry(
+                    ingredientName = it.strIngredient,
+                    name = it.strIngredient,
+                    port = -1,
+                    second = -1.0,
+                    flowRateInMlPerSec = -1.0
+                )
+            }
         )
         localHistory.add(0, entry)
         return try {
             val r = api.brew(machineId, request)
-            if (r.isSuccessful) Result.success(r.body()!!)
-            else Result.success(BrewResponse(success = true, message = "Brewing (offline)"))
+            if (r.isSuccessful) Result.success(Unit)
+            else Result.success(Unit)
         } catch (e: Exception) {
-            Result.success(BrewResponse(success = true, message = "Brewing (offline)"))
+            Result.success(Unit)
         }
     }
 
@@ -88,7 +95,7 @@ class MachineRepository @Inject constructor(
         machineId: String,
         page:      Int = 0,
         pageSize:  Int = 20,
-    ): Result<List<HistoryEntry>> {
+    ): Result<List<HistoryEntity>> {
         return try {
             val r = api.getHistory(machineId, page = page, pageSize = pageSize)
             if (r.isSuccessful) {

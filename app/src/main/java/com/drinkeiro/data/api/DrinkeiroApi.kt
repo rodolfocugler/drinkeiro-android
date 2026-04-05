@@ -65,7 +65,7 @@ interface DrinkeiroApi {
     suspend fun brew(
         @Path("machineId") machineId: String,
         @Body request: BrewRequest,
-    ): Response<BrewResponse>
+    ): Response<Unit>
 
     // ── History ───────────────────────────────────────────────────────────────
 
@@ -74,7 +74,7 @@ interface DrinkeiroApi {
         @Path("machineId") machineId: String,
         @Query("page")     page:      Int = 0,
         @Query("pageSize") pageSize:  Int = 20,
-    ): Response<ApiList<HistoryEntry>>
+    ): Response<ApiList<HistoryEntity>>
 
     // ── Cocktail categories ───────────────────────────────────────────────────
 

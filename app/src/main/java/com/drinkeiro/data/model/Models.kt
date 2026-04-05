@@ -83,12 +83,20 @@ data class PumpTriggerRequest(
 // ── History ───────────────────────────────────────────────────────────────────
 
 @Serializable
+data class HistoryEntity(
+    @SerialName("id") val id: String,
+    @SerialName("timestamp") val timestamp: Long,
+    @SerialName("machineId") val machineId: String,
+    @SerialName("historyEntries") val historyEntries: List<HistoryEntry>,
+)
+
+@Serializable
 data class HistoryEntry(
-    @SerialName("id")        val id: String,
-    @SerialName("idDrink")   val idDrink: String,
-    @SerialName("strDrink")  val strDrink: String,
-    @SerialName("ts")        val ts: String,
-    @SerialName("user")      val user: String,
+    @SerialName("ingredientName") val ingredientName: String,
+    @SerialName("name") val name: String,
+    @SerialName("port") val port: Int,
+    @SerialName("second") val second: Double,
+    @SerialName("flowRateInMlPerSec") val flowRateInMlPerSec: Double
 )
 
 // ── Brew ──────────────────────────────────────────────────────────────────────

@@ -21,7 +21,7 @@ data class MachineUiState(
     val pumps: List<Pump> = emptyList(),
 
     // History — paginated
-    val history: List<HistoryEntry> = emptyList(),
+    val history: List<HistoryEntity> = emptyList(),
     val isHistoryLoading: Boolean = false,
     val isHistoryLoadMore: Boolean = false,
     val isHistoryRefresh: Boolean = false,

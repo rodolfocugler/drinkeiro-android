@@ -619,7 +619,7 @@ fun MachineSwitcherSheet(vm: MachineViewModel, onDismiss: () -> Unit) {
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                "${if (machine.status == "online") "Online" else "Offline"} · ${machine.collaborators.size + 1} users",
+                                "${if (machine.status == "online") "Online" else "Offline"} · ${machine.collaborators.size} users",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = c.cream3
                             )
